@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
+require("dotenv").config(); // Load environment variables
 const mongoose = require("mongoose");
 
 let mainWindow;
@@ -8,7 +9,14 @@ let shellProcess;
 
 // --- Database Setup ---
 // Connect to MongoDB (assuming local instance for now, or use a cloud URI)
-const MONGO_URI = "mongodb://localhost:27017/nooblab";
+const MONGO_URI =
+    process.env.MONGO_URI || "mongodb://localhost:27017/nooblab_desktop";
+
+console.log(
+    "Connecting to MongoDB at:",
+    MONGO_URI.replace(/:([^:@]+)@/, ":****@")
+); // Log URI with masked password
+
 mongoose
     .connect(MONGO_URI)
     .then(() => {
@@ -43,6 +51,7 @@ async function seedDatabase() {
             console.log("Seeding Users...");
             await User.create({ username: "student", password: "password" });
             await User.create({ username: "admin", password: "admin" });
+            console.log("Users Seeded");
         }
 
         const courseCount = await Course.countDocuments();
@@ -67,6 +76,7 @@ async function seedDatabase() {
                     description: "HTML, CSS, and JavaScript fundamentals.",
                 },
             ]);
+            console.log("Courses Seeded");
         }
     } catch (err) {
         console.error("Seeding Error:", err);

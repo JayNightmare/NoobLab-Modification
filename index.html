@@ -22,29 +22,32 @@
             flex: 1;
             overflow: hidden;
         }
+        #left-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100%;
+
+            position: relative;
+            left: 0;
+        }
         #webapp-view {
             flex: 1;
             border: none;
             height: 100%;
         }
-        #splitter {
-            width: 5px;
-            background-color: #333;
-            cursor: ew-resize;
-            flex-shrink: 0;
-            z-index: 10;
-        }
-        #splitter:hover {
-            background-color: #007acc;
-        }
         #right-pane {
             display: flex;
             flex-direction: column;
-            width: 400px;
+            width: 500px;
             height: 100%;
             background-color: #1e1e1e;
             border-left: 1px solid #333;
             overflow: hidden;
+
+            position: relative;
+            right:0;
         }
         #tabs {
             display: flex;
@@ -111,12 +114,11 @@
 <body>
     <div id="container">
         <div id="content-area">
-            <!-- The legacy Java Web App -->
-            <webview id="webapp-view" src="about:blank" preload="./webview-preload.js" webpreferences="contextIsolation=no, nodeIntegration=yes"></webview>
-            
-            <!-- Splitter -->
-            <div id="splitter"></div>
-            
+            <!-- Left Pane (Web App) -->
+            <div id="left-pane">
+                <webview id="webapp-view" src="about:blank" preload="./webview-preload.js" webpreferences="contextIsolation=no, nodeIntegration=yes"></webview>
+            </div>
+                        
             <!-- The Native Terminal / IDE Pane -->
             <div id="right-pane">
                 <div id="tabs">
@@ -248,6 +250,7 @@
         const splitter = document.getElementById('splitter');
         const contentArea = document.getElementById('content-area');
         const rightPane = document.getElementById('right-pane');
+        const leftPane = document.getElementById('left-pane'); // Add reference to left pane
         let isDragging = false;
 
         splitter.addEventListener('mousedown', (e) => {
@@ -267,6 +270,8 @@
             // Constraints (min 100px, max container - 100px)
             if (newPaneWidth > 100 && newPaneWidth < containerWidth - 100) {
                 rightPane.style.width = `${newPaneWidth}px`;
+                // Left pane is flex: 1, so it will auto-resize
+                
                 fitAddon.fit();
                 if (editorInstance) editorInstance.layout();
             }
