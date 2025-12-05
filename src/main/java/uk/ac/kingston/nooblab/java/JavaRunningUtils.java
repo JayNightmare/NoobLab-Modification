@@ -274,12 +274,9 @@ public class JavaRunningUtils {
                         Thread.sleep(1000);
                         timesecs += 1;
                     }
-                    /*
-                     * `Thread.stop()` always throws a `new UnsupportedOperationException()` in Java 21+.
-                     * For detailed migration instructions see the migration guide available at
-                     * https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html
-                     */
-                    throw new UnsupportedOperationException();
+                    if (javaRunThread.isAlive()) {
+                        javaRunThread.interrupt();
+                    }
                     command.add("stop");
                 } catch (Exception e) { e.printStackTrace(); }
             }                        
