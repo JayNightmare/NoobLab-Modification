@@ -1,2 +1,4 @@
 src/main/webapp/doppio/vendor/*
 /target/
+.env
+node_modules/

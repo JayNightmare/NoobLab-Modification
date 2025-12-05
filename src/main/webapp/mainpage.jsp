@@ -298,6 +298,10 @@
                                         if (source) LOGcheat(source);
 
                                         editor.setValue(response);
+                                        
+                                        if (typeof NoobLabDesktop !== 'undefined') {
+                                            NoobLabDesktop.setCode(response);
+                                        }
                                         lastcode = response;
                                     }
 
