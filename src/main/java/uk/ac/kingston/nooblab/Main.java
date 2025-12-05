@@ -11,6 +11,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -409,7 +410,7 @@ public class Main extends HttpServlet
                         String html = "<p>You can find the previous work you need to do at these links:</p><ul>";
                         for (String prereqloc : prereqlocs)
                         {
-                            String prereqdesc = prereqdescs.remove(0);
+                            String prereqdesc = prereqdescs.removeFirst();
                             html += "<li><a class=\"nlinternal\" href=\""+prereqloc+"\">"+prereqdesc+"</a></li>";
                         }
                         html += "</ul>";
@@ -538,8 +539,8 @@ public class Main extends HttpServlet
             {
                 section.attr("style","display: none");
             }
-            sections.get(0).attr("style","display: block");
-            sections.get(0).addClass("selected");
+            sections.getFirst().attr("style","display: block");
+            sections.getFirst().addClass("selected");
 
             // Obscufate hiddenRun code
             Elements hiddenRuns = doc.select("div.hiddenrun, span.hiddenrun");
@@ -642,7 +643,7 @@ public class Main extends HttpServlet
             String s;
             try
             {
-                URL u = new URL("http://"+urlstr);
+                URL u = URI.create("http://" + urlstr).toURL();
                 is = u.openStream();         // throws an IOException
                 dis = new BufferedReader(new InputStreamReader(is));
                 while ((s = dis.readLine()) != null) {

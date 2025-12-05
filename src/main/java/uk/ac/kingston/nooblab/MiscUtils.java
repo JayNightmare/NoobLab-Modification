@@ -7,6 +7,7 @@ package uk.ac.kingston.nooblab;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.util.Properties;
 import java.util.UUID;
@@ -104,7 +105,7 @@ public class MiscUtils {
 
     public static String getHTML(String urlToRead) throws Exception {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(urlToRead);
+        URL url = URI.create(urlToRead).toURL();
         System.setProperty("https.protocols", "TLSv1,TLSv1.1,TLSv1.2");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");

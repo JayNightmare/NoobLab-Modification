@@ -266,15 +266,20 @@ public class JavaRunningUtils {
                     while ((javaRunThread.isAlive() || !out.isEmpty()) && timesecs <= 120 && !stopDetected)
                     {
                         // have we had a stop command?
-                        if (!command.isEmpty() && command.get(command.size()-1).equals("stop"))
+                        if (!command.isEmpty() && command.getLast().equals("stop"))
                         {
                             stopDetected = true;
-                            command.remove(command.size()-1);
+                            command.removeLast();
                         }
                         Thread.sleep(1000);
                         timesecs += 1;
                     }
-                    javaRunThread.stop();
+                    /*
+                     * `Thread.stop()` always throws a `new UnsupportedOperationException()` in Java 21+.
+                     * For detailed migration instructions see the migration guide available at
+                     * https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html
+                     */
+                    throw new UnsupportedOperationException();
                     command.add("stop");
                 } catch (Exception e) { e.printStackTrace(); }
             }                        

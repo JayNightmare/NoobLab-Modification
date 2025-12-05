@@ -57,9 +57,9 @@ public class TotalTypes
 
         // if the first line isn't a login line, treat the first line as such
 
-        if (!myEntries.get(0)[2].equals("login"))
+        if (!myEntries.getFirst()[2].equals("login"))
         {
-            myEntries.get(0)[2] = "login";
+            myEntries.getFirst()[2] = "login";
         }
 
         Date lastLoginDate = null;
@@ -125,10 +125,10 @@ public class TotalTypes
             }
         }
 
-        if (!myEntries.get(myEntries.size()-1)[2].equals("logout"))
+        if (!myEntries.getLast()[2].equals("logout"))
         {
             // one sitting with no logout - use last line as logout date
-            lastLogoutDate = sdf.parse(myEntries.get(myEntries.size()-1)[0]);
+            lastLogoutDate = sdf.parse(myEntries.getLast()[0]);
             //System.out.println("adding period "+lastLoginDate+"-"+lastLogoutDate);
             p = p.plus(new Period(new DateTime(lastLoginDate),new DateTime(lastLogoutDate)));
         }

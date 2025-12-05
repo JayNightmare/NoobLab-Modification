@@ -80,7 +80,7 @@ public class RealStats
         }       
         
         // parse first line of file
-        String[] firstline = myEntries.remove(0);
+        String[] firstline = myEntries.removeFirst();
         Date lastLineDate = sdf.parse(firstline[0]);
         
         Period p = new Period();
@@ -115,7 +115,7 @@ public class RealStats
             ArrayList<String[]> lines = new ArrayList(reader.readAll());
             while (!lines.isEmpty())
             {
-                String[] line = lines.get(0);
+                String[] line = lines.getFirst();
                 String studentIp = line[1];
                 String studentTextDate = line[0];
                 Date studentDate = sdf.parse(studentTextDate);
@@ -123,7 +123,7 @@ public class RealStats
                 {
                     return true; // they did turn up!
                 }
-                lines.remove(0);
+                lines.removeFirst();
             }
         }
         catch (Exception e) 

@@ -48,7 +48,7 @@ public class BounceFile extends HttpServlet {
             
             try {
                 List items = upload.parseRequest(request);
-                FileItem item = (FileItem)items.get(0);                                
+                FileItem item = (FileItem)items.getFirst();                                
                 
                 // it's a zip file... convert anything in it
                 if (item.getName().toLowerCase().endsWith(".zip"))
