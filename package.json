@@ -30,7 +30,8 @@
         "files": [
             "**/*",
             "target/NoobLab.jar",
-            "!src",
+            "src/main/webapp/**/*",
+            "!src/main/java",
             "!pom.xml",
             "!*.md"
         ]

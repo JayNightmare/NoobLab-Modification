@@ -1,21 +1,20 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
-require("dotenv").config(); // Load environment variables
+const waitOn = require("wait-on");
+require("dotenv").config();
 const mongoose = require("mongoose");
 
 let mainWindow;
-let shellProcess;
+let javaProcess;
 
 // --- Database Setup ---
-// Connect to MongoDB (assuming local instance for now, or use a cloud URI)
 const MONGO_URI =
     process.env.MONGO_URI || "mongodb://localhost:27017/nooblab_desktop";
-
 console.log(
     "Connecting to MongoDB at:",
     MONGO_URI.replace(/:([^:@]+)@/, ":****@")
-); // Log URI with masked password
+);
 
 mongoose
     .connect(MONGO_URI)
@@ -23,26 +22,10 @@ mongoose
         console.log("MongoDB Connected");
         seedDatabase();
     })
-    .catch((err) =>
-        console.log(
-            "MongoDB Connection Error (Expected if no DB running):",
-            err
-        )
-    );
+    .catch((err) => console.log("MongoDB Connection Error:", err));
 
-// Define a simple User Schema
-const UserSchema = new mongoose.Schema({
-    username: String,
-    password: String, // In production, hash this!
-});
+const UserSchema = new mongoose.Schema({ username: String, password: String });
 const User = mongoose.model("User", UserSchema);
-
-const CourseSchema = new mongoose.Schema({
-    id: String,
-    title: String,
-    description: String,
-});
-const Course = mongoose.model("Course", CourseSchema);
 
 async function seedDatabase() {
     try {
@@ -53,97 +36,45 @@ async function seedDatabase() {
             await User.create({ username: "admin", password: "admin" });
             console.log("Users Seeded");
         }
-
-        const courseCount = await Course.countDocuments();
-        if (courseCount === 0) {
-            console.log("Seeding Courses...");
-            await Course.create([
-                {
-                    id: "java101",
-                    title: "Java Programming 101",
-                    description:
-                        "Introduction to Java, variables, loops, and objects.",
-                },
-                {
-                    id: "python_basics",
-                    title: "Python Basics",
-                    description:
-                        "Learn Python syntax and basic data structures.",
-                },
-                {
-                    id: "web_dev",
-                    title: "Web Development",
-                    description: "HTML, CSS, and JavaScript fundamentals.",
-                },
-            ]);
-            console.log("Courses Seeded");
-        }
     } catch (err) {
         console.error("Seeding Error:", err);
     }
 }
-// ----------------------
 
-// Terminal IPC
-ipcMain.on("terminal-init", (event) => {
-    const shell = process.platform === "win32" ? "powershell.exe" : "bash";
-    shellProcess = spawn(shell, [], {
-        cwd: process.cwd(),
-        env: process.env,
+// --- Java Server Setup ---
+const JAR_PATH = path.join(__dirname, "target", "NoobLab.jar");
+const WEBAPP_DIR = path.join(__dirname, "src", "main", "webapp");
+const PORT = 8080;
+
+function startJavaServer() {
+    console.log("Starting Java Server...");
+    javaProcess = spawn("java", [
+        `-Dwebapp.dir=${WEBAPP_DIR}`,
+        "-jar",
+        JAR_PATH,
+        PORT.toString(),
+    ]);
+
+    javaProcess.stdout.on("data", (data) => {
+        console.log(`[Java]: ${data}`);
     });
 
-    shellProcess.stdout.on("data", (data) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("terminal-incoming", data.toString());
-        }
+    javaProcess.stderr.on("data", (data) => {
+        console.error(`[Java Error]: ${data}`);
     });
-
-    shellProcess.stderr.on("data", (data) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("terminal-incoming", data.toString());
-        }
-    });
-
-    shellProcess.on("exit", (code) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send(
-                "terminal-incoming",
-                `\r\nProcess exited with code ${code}\r\n`
-            );
-        }
-    });
-});
-
-ipcMain.on("terminal-input", (event, data) => {
-    if (shellProcess && !shellProcess.killed) {
-        shellProcess.stdin.write(data);
-    }
-});
+}
 
 // --- Auth IPC ---
 ipcMain.on("login-attempt", async (event, { username, password }) => {
     console.log(`Login attempt for: ${username}`);
-
     try {
-        // Check the DB
         const user = await User.findOne({ username, password });
-
         if (user) {
             console.log("Login successful");
-            // Navigate the webview to the dashboard
-            if (mainWindow) {
-                const dashboardPath = path.join(
-                    __dirname,
-                    "local-server",
-                    "public",
-                    "dashboard.html"
-                );
-                const dashboardUrl = `file://${dashboardPath}`;
-                mainWindow.webContents.send("server-ready", dashboardUrl);
-            }
+            // Redirect to Java WebApp with trusted_user param
+            const targetUrl = `http://localhost:${PORT}/Login?trusted_user=${username}`;
+            mainWindow.loadURL(targetUrl);
         } else {
-            console.log("Login failed");
-            // Send failure message back (we can use event.reply if using ipcRenderer.send)
             event.reply("login-failed", "Invalid credentials");
         }
     } catch (e) {
@@ -152,17 +83,6 @@ ipcMain.on("login-attempt", async (event, { username, password }) => {
     }
 });
 
-ipcMain.handle("get-dashboard-data", async (event) => {
-    try {
-        const courses = await Course.find({});
-        return { courses };
-    } catch (e) {
-        console.error("Fetch Error:", e);
-        return { courses: [] };
-    }
-});
-// ----------------
-
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
@@ -170,50 +90,65 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
-            webviewTag: true, // Enable <webview> tag
+            preload: path.join(__dirname, "webview-preload.js"),
         },
     });
 
-    const localIndex = path.join(__dirname, "index.html");
-    mainWindow.loadFile(localIndex);
-
-    // Point to our new local login page
+    // Load the Electron-based Login Page first
     const loginPath = path.join(
         __dirname,
         "local-server",
         "public",
         "login.html"
     );
-    const loginUrl = `file://${loginPath}`;
+    mainWindow.loadFile(loginPath);
 
-    mainWindow.webContents.on("did-finish-load", () => {
-        mainWindow.webContents.send("server-ready", loginUrl);
+    mainWindow.on("closed", () => {
+        mainWindow = null;
     });
 
-    mainWindow.on("closed", function () {
-        mainWindow = null;
+    // Inject CSS into every page load
+    mainWindow.webContents.on("did-finish-load", () => {
+        const fs = require("fs");
+        const cssPath = path.join(
+            __dirname,
+            "src",
+            "main",
+            "webapp",
+            "css",
+            "modern.css"
+        );
+        fs.readFile(cssPath, "utf-8", (err, data) => {
+            if (!err) {
+                mainWindow.webContents.insertCSS(data);
+                console.log("Injected modern.css");
+            } else {
+                console.error("Failed to load modern.css", err);
+            }
+        });
     });
 }
 
 app.on("ready", () => {
-    createWindow();
+    startJavaServer();
+
+    const javaUrl = `http://localhost:${PORT}/login.jsp`;
+    waitOn({ resources: [javaUrl], timeout: 30000 })
+        .then(() => {
+            console.log("Java Server Ready");
+            createWindow();
+        })
+        .catch((err) => console.error("Java Server failed to start", err));
 });
 
-app.on("window-all-closed", function () {
+app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
         app.quit();
     }
 });
 
-app.on("activate", function () {
-    if (mainWindow === null) {
-        createWindow();
-    }
-});
-
 app.on("will-quit", () => {
     if (javaProcess) {
-        console.log("Killing Java server...");
         javaProcess.kill();
     }
 });

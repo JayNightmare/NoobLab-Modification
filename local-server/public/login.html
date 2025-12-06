@@ -6,25 +6,31 @@
     <link rel="stylesheet" href="../../src/main/webapp/nooblab.css">
     <style>
         body {
-            background-color: #f0f0f0;
+            background-color: #121212;
+            color: #e0e0e0;
             display: flex;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .login-container {
-            background: white;
+            background: #1e1e1e;
             padding: 40px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #333;
             width: 100%;
             max-width: 400px;
             text-align: center;
         }
         .login-container h3 {
             margin-top: 0;
-            color: #333;
+            color: #e0e0e0;
+        }
+        .login-container p {
+            color: #a0a0a0;
         }
         .form-group {
             margin-bottom: 15px;
@@ -33,30 +39,38 @@
         .form-group label {
             display: block;
             margin-bottom: 5px;
-            color: #666;
+            color: #a0a0a0;
         }
         .form-group input {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
+            background-color: #2d2d2d;
+            border: 1px solid #333;
+            color: #e0e0e0;
             border-radius: 4px;
             box-sizing: border-box;
         }
+        .form-group input:focus {
+            outline: none;
+            border-color: #bb86fc;
+        }
         .btn {
-            background-color: #007acc;
-            color: white;
+            background-color: #bb86fc;
+            color: #000000;
             border: none;
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
             font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.2s;
         }
         .btn:hover {
-            background-color: #005999;
+            background-color: #9965f4;
         }
         .error {
-            color: red;
+            color: #cf6679;
             margin-top: 10px;
             display: none;
             font-size: 14px;

@@ -35,6 +35,17 @@ public class Login extends HttpServlet {
         
         // set request parameter to de-crap IE on KU network
         response.addHeader("X-UA-Compatible", "IE=Edge");
+
+        // DEV MODE BYPASS
+        String devMode = System.getProperty("nooblab.devmode");
+        String trustedUser = request.getParameter("trusted_user");
+        if ("true".equals(devMode) && trustedUser != null && !trustedUser.isEmpty()) {
+            request.getSession().setAttribute("username", trustedUser);
+            request.getSession().setAttribute("watermark", MiscUtils.klungeUID(trustedUser));
+            request.getSession().setAttribute("freshlogin", "true");
+            response.sendRedirect("dashboard_modern.jsp");
+            return;
+        }
         
        // get the parameters
         

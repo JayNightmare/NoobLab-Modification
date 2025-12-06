@@ -5109,6 +5109,7 @@ window.onload = function () {
         width: "600px",
         maxWidth: "600px",
         maxHeight: "80%",
+        color: "#000",
         onComplete: function () {
             //$(this).colorbox.resize();
         },
