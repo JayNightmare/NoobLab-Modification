@@ -23,13 +23,8 @@ const api = {
 
 // Expose to the main world
 try {
-    if (contextBridge && contextBridge.exposeInMainWorld) {
-        contextBridge.exposeInMainWorld("NoobLabDesktop", api);
-    } else {
-        window.NoobLabDesktop = api;
-    }
+    // Direct assignment since we are using nodeIntegration: true and contextIsolation: false
+    window.NoobLabDesktop = api;
 } catch (error) {
     console.error("Failed to expose NoobLabDesktop API:", error);
-    // Fallback for environments where contextBridge might fail or not be needed
-    window.NoobLabDesktop = api;
 }

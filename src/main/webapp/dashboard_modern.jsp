@@ -75,6 +75,7 @@
         <div style="padding: 1rem; font-weight: bold; font-size: 1.2rem;">NoobLab <span style="color: var(--accent-color)">Modern</span></div>
         <div style="flex-grow: 1;"></div>
         <div style="padding: 1rem;">
+            <a href="${pageContext.request.contextPath}/account.jsp">Account</a>
             <a href="${pageContext.request.contextPath}/logout.jsp">Logout</a>
         </div>
     </div>
@@ -82,60 +83,33 @@
     <div class="dashboard-container">
         <h1>Welcome back, ${sessionScope.user}</h1>
         
-        <!-- Programming 1 Section -->
-        <div class="section-title">Programming 1 (Java)</div>
-        <div class="card-grid">
-            <!-- Mock Data for now -->
-            <div class="card" onclick="window.location.href='${pageContext.request.contextPath}/mainpage.jsp?module=prog1&level=easy'">
-                <h3>Introduction to Java</h3>
-                <p>Learn the basics of syntax and variables.</p>
-                <div class="medal-badge medal-bronze">Bronze</div>
-                <div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>
-            </div>
-            <div class="card" onclick="window.location.href='${pageContext.request.contextPath}/mainpage.jsp?module=prog1&level=medium'">
-                <h3>Control Flow</h3>
-                <p>If statements, loops, and logic.</p>
-                <div class="medal-badge medal-silver">Silver</div>
-                <div class="progress-bar"><div class="progress-fill" style="width: 60%"></div></div>
-            </div>
-            <div class="card">
-                <h3>Objects & Classes</h3>
-                <p>Understanding OOP concepts.</p>
-                <div class="medal-badge medal-gold">Gold</div>
-                <div class="progress-bar"><div class="progress-fill" style="width: 30%"></div></div>
-            </div>
-        </div>
+        <c:if test="${not empty error}">
+            <div style="color: red; margin-bottom: 1rem;">${error}</div>
+        </c:if>
 
-        <!-- Programming 2 Section -->
-        <div class="section-title">Programming 2 (Advanced)</div>
+        <!-- Modules Section -->
+        <div class="section-title">My Modules</div>
         <div class="card-grid">
-            <div class="card">
-                <h3>Data Structures</h3>
-                <p>Lists, Maps, and Sets.</p>
-                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
-            </div>
-            <div class="card">
-                <h3>Algorithms</h3>
-                <p>Sorting and searching.</p>
-                <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
-            </div>
-        </div>
-        
-        <!-- Medal Difficulty Section -->
-        <div class="section-title">Medal Challenges</div>
-        <div class="card-grid">
-            <div class="card">
-                <h3>Bronze Challenges</h3>
-                <p>Beginner friendly tasks.</p>
-            </div>
-            <div class="card">
-                <h3>Silver Challenges</h3>
-                <p>Intermediate problem solving.</p>
-            </div>
-            <div class="card">
-                <h3>Gold Challenges</h3>
-                <p>Advanced algorithmic puzzles.</p>
-            </div>
+            <c:forEach items="${modules}" var="module">
+                <div class="card" onclick="window.location.href='${pageContext.request.contextPath}/ModuleServlet?id=${module.id}'">
+                    <h3>${module.title}</h3>
+                    <p>${module.description}</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        ${module.medalCount} Medals Won
+                    </p>
+                    <!-- <div class="medal-badge medal-bronze">Bronze</div> -->
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${module.progress}%"></div></div>
+                </div>
+            </c:forEach>
+            
+            <!-- Fallback if no modules found (e.g. DB empty) -->
+            <c:if test="${empty modules}">
+                <div class="card" onclick="window.location.href='${pageContext.request.contextPath}/module.jsp?id=prog1'">
+                    <h3>Programming 1 (Java)</h3>
+                    <p>Introduction to Java Programming (Default)</p>
+                    <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+            </c:if>
         </div>
     </div>
 </body>

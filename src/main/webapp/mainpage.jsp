@@ -149,7 +149,7 @@
                 <button id="stopbutton" onclick="stop()" disabled>Stop</button>
                 <button id="clearbutton" onclick="clearEditor()">Clear</button>
                 <button id="tidy" onclick="tidyCode()">Format</button>
-                <button onclick="window.location.href='${pageContext.request.contextPath}/dashboard_modern.jsp'">Dashboard</button>
+                <button onclick="window.location.href='${pageContext.request.contextPath}/DashboardServlet'">Dashboard</button>
             </div>
         </div>
 
@@ -157,7 +157,14 @@
             <!-- Sidebar (Lesson Content) -->
             <div class="ide-sidebar">
                 <div class="lesson-content">
-                    ${contentshtml}
+                    <c:choose>
+                        <c:when test="${not empty param.content}">
+                            <c:import url="${param.content}"/>
+                        </c:when>
+                        <c:otherwise>
+                            ${contentshtml}
+                        </c:otherwise>
+                    </c:choose>
                 </div>
             </div>
 
@@ -167,7 +174,8 @@
                 <div class="ide-editor-area">
                     <div id="editor-wrapper">
                         <div id="code-titlebar" style="display:none">[ Code ]</div>
-                        <iframe id="code-blockly" src="${pageContext.request.contextPath}/blockly.jsp?language=${requestScope.blocklylang}" style="display:none"></iframe>
+                        <c:set var="blang" value="${requestScope.blocklylang != null ? requestScope.blocklylang : 'javascript'}" />
+                        <iframe id="code-blockly" src="${pageContext.request.contextPath}/blockly.jsp?language=${blang}" style="display:none"></iframe>
                         <div id="code-main"></div>
                         <div id="filetree"></div>
                     </div>
@@ -208,7 +216,7 @@
         <div id="usermenu" style="display:none">
              <!-- Legacy user menu, we might need to reimplement its functionality -->
              <!-- For now, keep it hidden but accessible if JS needs it -->
-             <div class="extramenu" id="extramenudashboard" onclick="window.location.href='${pageContext.request.contextPath}/dashboard_modern.jsp'">Go to Dashboard</div>
+             <div class="extramenu" id="extramenudashboard" onclick="window.location.href='${pageContext.request.contextPath}/DashboardServlet'">Go to Dashboard</div>
              <div id="openthemechooser" onclick="openThemeChooser()">Change editor theme</div>
         </div>
         

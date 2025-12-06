@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Java If Statements</title>
+</head>
+<body>
+    <div class="parameter" id="language">java</div>
+    <div class="parameter" id="courseNo">1</div>
+    <div class="parameter" id="lessonNo">3</div>
+    <div class="parameter" id="open">true</div>
+
+    <div class="section">
+        <h2 class="title">Conditionals (If/Else)</h2>
+        <p>Use <code>if</code> statements to run code only when a condition is true.</p>
+        
+        <h3>Example</h3>
+        <pre class="prettyprint">
+int temperature = 30;
+if (temperature > 25) {
+    System.out.println("It's hot!");
+} else {
+    System.out.println("It's okay.");
+}
+        </pre>
+    </div>
+
+    <div class="section">
+        <h2 class="title">Exercise: Number Checker</h2>
+        <p>Create an integer variable named <code>number</code> and set it to <b>-5</b>.</p>
+        <p>Write an if/else statement that prints "Positive" if the number is greater than or equal to 0, and "Negative" if it is less than 0.</p>
+        
+        <div class="testCase" data-id="ex3" data-medal="Bronze">
+            <div class="testCode">
+                <div class="test">
+                    if (consoleOutput().trim().equals("Negative")) return true;
+                    return false;
+                </div>
+            </div>
+            <div class="testDesc">Check if output is "Negative" for input -5</div>
+        </div>
+        
+        <div class="testCase" data-id="ex3b" data-medal="Silver">
+            <div class="testCode">
+                <div class="test">
+                    // Simple check to see if they used 'if' and 'else'
+                    if (code.contains("if") && code.contains("else")) return true;
+                    return false;
+                </div>
+            </div>
+            <div class="testDesc">Use if and else keywords</div>
+        </div>
+    </div>
+</body>
+</html>

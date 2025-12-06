@@ -12,7 +12,7 @@ window.SCALE = $.cookie("contentzoom");
 if (window.SCALE == "") window.SCALE = 1;
 window.SCALE = parseFloat(window.SCALE);
 
-newdoppio = false;
+newdoppio = true; // Forced to true because old doppio is broken
 
 var interactionlog = undefined;
 var interactionlogitems = undefined;
@@ -487,7 +487,7 @@ function kinderCarolCode(source) {
 
         var code = code.replace("DIRECTION", direction);
         editor.setValue(code);
-        $("input#runbutton").click();
+        $("#runbutton").click();
     }
 }
 
@@ -521,7 +521,7 @@ function runCarolKinder() {
 
     program = program.replace();
     editor.setValue(program);
-    $("input#runbutton").click();
+    $("#runbutton").click();
 }
 
 function unhappyBilly() {
@@ -1469,12 +1469,12 @@ function howDoYouFeelAbout(
     });
 }
 
-function greatSuccessHtml(medal, fb) {
+function greatSuccessHtml(medal, fb, id) {
     // legacy
-    medalGreatSuccess(medal, fb);
+    medalGreatSuccess(medal, fb, id);
 }
 
-function medalGreatSuccess(medal, fb) {
+function medalGreatSuccess(medal, fb, id) {
     if (typeof fb === "object") {
         // array of feedbacks
         var fbstr = "";
@@ -1507,17 +1507,17 @@ function medalGreatSuccess(medal, fb) {
         parent.$("#editor-wrapper").css("bottom", "");
         parent.$("#editor-wrapper").css("height", "");
         parent.resize();
-        $("div#testresult", iframeDoc).append(
-            '<p style="text-align: center"><img src="' +
-                parent.contextPath +
-                "/images/medal" +
-                medalTypeOnly +
-                '.png"/></p>Passing this test awards you a ' +
-                medalType +
-                " for the '" +
-                medalName +
-                "' challenge!</div>"
-        );
+        // $("div#testresult", iframeDoc).append(
+        //     '<p style="text-align: center"><img src="' +
+        //         parent.contextPath +
+        //         "/images/medal" +
+        //         medalTypeOnly +
+        //         '.png"/></p>Passing this test awards you a ' +
+        //         medalType +
+        //         " for the '" +
+        //         medalName +
+        //         "' challenge!</div>"
+        // );
         $("div#testresult", iframeDoc).css("opacity", 0.8);
     }
     parent.LOGtestPassed(medal);
@@ -1527,7 +1527,7 @@ function medalGreatSuccess(medal, fb) {
             "Well done! Your code was good enough for a medal!",
             medalType
         );
-    if (medal) parent.LOGmedal(medal);
+    if (medal) parent.LOGmedal(medal, id);
 }
 
 function epicFailHtml(SUCCESSFULTESTS, NUMBEROFTESTS, fb) {
@@ -2464,7 +2464,9 @@ function handleTestCasesJS() {
             code = "INPUTNO = 0;\n" + inputArray + "\n" + code;
             code +=
                 "\n" +
-                "if (SUCCESSFULTESTS == NUMBEROFTESTS) greatSuccess(medal09876);";
+                "if (SUCCESSFULTESTS == NUMBEROFTESTS) greatSuccess(medal09876, '" +
+                id +
+                "');";
             code += "\n" + "if (SUCCESSFULTESTS != NUMBEROFTESTS) epicFail();";
 
             LOGtestStart(id, editor.getValue(), undefined, medal09876);
@@ -4821,11 +4823,12 @@ window.onload = function () {
     }
     /*else // if Java, handle runtime selection
    {
-        if ($.cookie("newdoppio") == "")
+        // Force newdoppio to true if not set or false, as old doppio is broken/missing
+        if ($.cookie("newdoppio") != "true")
         {
             $.cookie("newdoppio","true",{expires: 365, path: '/'});
         }
-        newdoppio = $.cookie("newdoppio") == "true";
+        newdoppio = true; // Force it in memory too
         if (newdoppio)
         {
             $("div#javaruntimemenu").html("Use old Java runtime<br/>(new currently in use)");
@@ -4844,7 +4847,7 @@ window.onload = function () {
     } else if ($("div.parameter#language").text().trim() == "java") {
         if ($("div.parameter#javaruntime").text().trim() == "new")
             newdoppio = true;
-        handleTestCasesJava();
+        JavaTestManager.init();
     } else if ($("div.parameter#language").text().trim() == "fullweb") {
         handleTestCasesHtml();
     } else if (
@@ -5556,7 +5559,10 @@ window.onload = function () {
     // check for testCases with 5 attempts and update
     /*
     setInterval(function(){
-        if ($(".testCase[data-fails=5]").length != 0 && $("input#runbutton").attr("disabled") != "disabled")
+        if (
+            $(".testCase[data-fails=5]").length != 0 &&
+            $("#runbutton").attr("disabled") != "disabled"
+        )
         {
             var $lastfail = $(".testCase[data-fails=5]").eq(0);
             $lastfail.attr("data-fails","0");

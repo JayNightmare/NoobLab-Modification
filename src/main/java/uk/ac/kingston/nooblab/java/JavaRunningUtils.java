@@ -111,7 +111,7 @@ public class JavaRunningUtils {
                 // it ain't gonna compile anyway :-)
                 // TODO: handle thing gracefully :-)
             }
-            className = className.replaceAll("[^A-Za-z0-9]", "");
+            className = className.replaceAll("[^A-Za-z0-9_$]", "");
 
             // finally, whack the remapping of IO code onto the end if serverRun
             if (serverRun) code = IORedefiner.modCode(code,id,classWithMain,pkgWithMain);

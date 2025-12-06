@@ -72,6 +72,102 @@
         // Override maxMinCodeWeb (alias)
         window.maxMinCodeWeb = window.maxMinCode;
 
+        // Modern content prep: hide parameter metadata and collapse sections by default
+        $(document).ready(function () {
+            var lessonContent = document.querySelector(".lesson-content");
+            if (!lessonContent) return;
+
+            // Hide raw parameter blocks (language, courseNo, etc.)
+            $(lessonContent).find(".parameter").hide();
+
+            // Ensure only the first section shows by default
+            var sections = Array.from(
+                lessonContent.querySelectorAll(".section")
+            );
+            if (sections.length === 0) return;
+
+            // Build a simple tab-like nav for sections
+            var tabBar = document.createElement("div");
+            tabBar.className = "section-tab-bar";
+
+            // Lightweight styling to avoid CSS file edits
+            var tabStyles = document.createElement("style");
+            tabStyles.textContent =
+                ".section-tab-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}" +
+                ".section-tab-bar .section-tab{border:1px solid #d0d7de;background:#f6f8fa;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:0.9rem;}" +
+                ".section-tab-bar .section-tab.active{background:#0f62fe;border-color:#0f62fe;color:#fff;}";
+            document.head.appendChild(tabStyles);
+
+            var tabButtons = [];
+            var activateSection = function (index) {
+                sections.forEach(function (section, idx) {
+                    if (idx === index) {
+                        section.classList.add("selected");
+                        section.style.display = "block";
+                    } else {
+                        section.classList.remove("selected");
+                        section.style.display = "none";
+                    }
+                });
+
+                tabButtons.forEach(function (btn, idx) {
+                    if (idx === index) {
+                        btn.classList.add("active");
+                    } else {
+                        btn.classList.remove("active");
+                    }
+                });
+
+                // Preserve hash navigation support
+                var targetHash = "#" + (index + 1);
+                if (document.location.hash !== targetHash) {
+                    history.replaceState(null, "", targetHash);
+                }
+            };
+
+            sections.forEach(function (section, index) {
+                // Use the first heading as the label, fall back to a generic title
+                var heading = section.querySelector("h1, h2, h3, h4");
+                var label = heading
+                    ? heading.textContent.trim()
+                    : "Section " + (index + 1);
+
+                var btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "section-tab";
+                btn.textContent = label || "Section " + (index + 1);
+                btn.addEventListener("click", function () {
+                    activateSection(index);
+                });
+                tabButtons.push(btn);
+                tabBar.appendChild(btn);
+
+                // Collapse all sections initially; activation happens after loop
+                section.classList.remove("selected");
+                section.style.display = "none";
+            });
+
+            // Inject the tab bar at the top of lesson content
+            lessonContent.insertBefore(tabBar, lessonContent.firstChild);
+
+            // Activate the first section (or hash-indexed section if present)
+            var initialIndex = 0;
+            if (document.location.hash && document.location.hash.length > 1) {
+                var parsed = parseInt(
+                    document.location.hash.replace("#", ""),
+                    10
+                );
+                if (
+                    !isNaN(parsed) &&
+                    parsed >= 1 &&
+                    parsed <= sections.length
+                ) {
+                    initialIndex = parsed - 1;
+                }
+            }
+            activateSection(initialIndex);
+        });
+
         // Fix for #content selector usage in legacy code
         // Many functions look for #content to scroll or find elements.
         // In modern layout, the content is in .ide-sidebar .lesson-content

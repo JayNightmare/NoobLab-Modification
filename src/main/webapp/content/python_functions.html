@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Python Functions</title>
+</head>
+<body>
+    <div class="parameter" id="language">python</div>
+    <div class="parameter" id="courseNo">2</div>
+    <div class="parameter" id="lessonNo">3</div>
+    <div class="parameter" id="open">true</div>
+
+    <div class="section">
+        <h2 class="title">Python Functions</h2>
+        <p>Functions are blocks of code that run when they are called.</p>
+        
+        <h3>Example</h3>
+        <pre class="prettyprint">
+def say_hello():
+    print("Hello!")
+
+say_hello()
+        </pre>
+    </div>
+
+    <div class="section">
+        <h2 class="title">Exercise: Greeter</h2>
+        <p>Define a function named <code>greet</code> that takes one parameter <code>name</code>.</p>
+        <p>Inside the function, print "Hello " followed by the name.</p>
+        <p>Call the function with the name "Bob".</p>
+        
+        <div class="testCase" data-id="py3" data-medal="Bronze">
+            <div class="testCode">
+                <div class="test">
+                    if (consoleOutput().trim().equals("Hello Bob")) return true;
+                    return false;
+                </div>
+            </div>
+            <div class="testDesc">Define greet(name) and call it with "Bob"</div>
+        </div>
+    </div>
+</body>
+</html>

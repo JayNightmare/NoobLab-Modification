@@ -43,7 +43,7 @@ public class Login extends HttpServlet {
             request.getSession().setAttribute("username", trustedUser);
             request.getSession().setAttribute("watermark", MiscUtils.klungeUID(trustedUser));
             request.getSession().setAttribute("freshlogin", "true");
-            response.sendRedirect("dashboard_modern.jsp");
+            response.sendRedirect("DashboardServlet");
             return;
         }
         
@@ -102,6 +102,11 @@ public class Login extends HttpServlet {
             //LogActivity.logActivity(username, date, "logout", "","","", request);
             originalUrl =  request.getContextPath().toString()+"/logout.jsp";
             request.getSession().invalidate();
+        }
+
+        // Default landing page if none supplied
+        if (originalUrl == null || originalUrl.trim().isEmpty()) {
+            originalUrl = "DashboardServlet";
         }
 
         // and redirect to original URL
