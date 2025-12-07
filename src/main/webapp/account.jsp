@@ -1,5 +1,20 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ page import="java.util.Set" %>
+<%@ page import="java.util.Arrays" %>
+<%
+    // Fetch available CodeMirror themes
+    Set<String> cmthemesSet = request.getServletContext().getResourcePaths("/codemirror/theme/");
+    String[] cmthemes = new String[0];
+    if (cmthemesSet != null) {
+        cmthemes = cmthemesSet.toArray(new String[0]);
+        for (int i = 0; i < cmthemes.length; i++) {
+            cmthemes[i] = cmthemes[i].replace("/codemirror/theme/", "").replace(".css", "");
+        }
+        Arrays.sort(cmthemes);
+    }
+    request.setAttribute("cmthemes", cmthemes);
+%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,6 +22,7 @@
     <title>My Account - NoobLab</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/modern.css">
+    <script src="${pageContext.request.contextPath}/jq.js"></script>
     <style>
         .account-container {
             max-width: 600px;
@@ -24,7 +40,7 @@
             margin-bottom: 0.5rem;
             color: var(--text-primary);
         }
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 0.8rem;
             border: 1px solid var(--border-color);
@@ -51,6 +67,15 @@
         }
         .success { background: rgba(40, 167, 69, 0.2); color: #28a745; }
         .error { background: rgba(220, 53, 69, 0.2); color: #dc3545; }
+        
+        .section-title {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
     </style>
 </head>
 <body>
@@ -91,8 +116,68 @@
                 <input type="password" name="password">
             </div>
 
-            <button type="submit" class="btn">Save Changes</button>
+            <button type="submit" class="btn">Save Profile Changes</button>
         </form>
+
+        <h2 class="section-title">Editor Settings</h2>
+        <div class="form-group">
+            <label>Editor Theme</label>
+            <select id="editorTheme">
+                <option value="default">Default</option>
+                <c:forEach items="${cmthemes}" var="theme">
+                    <option value="${theme}">${theme}</option>
+                </c:forEach>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Font Size (px)</label>
+            <input type="number" id="editorFontSize" value="14" min="8" max="30">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="disableBlocks" style="width: auto; margin-right: 10px;">
+                Disable Block-based Coding (where applicable)
+            </label>
+        </div>
+
+        <button onclick="saveEditorSettings()" class="btn">Save Editor Settings</button>
     </div>
+
+    <script>
+        var contextPath = "${pageContext.request.contextPath}";
+        
+        $(document).ready(function() {
+            // Load current settings
+            var currentTheme = $.cookie("editortheme") || "dracula";
+            $("#editorTheme").val(currentTheme);
+
+            var currentFontSize = $.cookie("editorfontsize") || "14";
+            $("#editorFontSize").val(currentFontSize);
+
+            var disableBlocks = $.cookie("disableblocks") === "true";
+            $("#disableBlocks").prop("checked", disableBlocks);
+        });
+
+        function saveEditorSettings() {
+            var theme = $("#editorTheme").val();
+            var fontSize = $("#editorFontSize").val();
+            var disableBlocks = $("#disableBlocks").is(":checked");
+
+            $.cookie("editortheme", theme, { expires: 365, path: "/" });
+            $.cookie("editorfontsize", fontSize, { expires: 365, path: "/" });
+            $.cookie("disableblocks", disableBlocks ? "true" : "false", { expires: 365, path: "/" });
+
+            // Show success message
+            var msg = $('<div class="message success">Editor settings saved!</div>');
+            $(".account-container").find(".message").remove();
+            $(".account-container").find("h1").after(msg);
+            
+            setTimeout(function() {
+                msg.fadeOut(function() { $(this).remove(); });
+            }, 3000);
+        }
+    </script>
 </body>
 </html>

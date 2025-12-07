@@ -5491,7 +5491,8 @@ window.onload = function () {
 
     // set editor theme if needed
     var editortheme = $.cookie("editortheme");
-    if (editortheme == "") editortheme = "default";
+    if (!editortheme || editortheme == "" || editortheme == "default")
+        editortheme = "dracula";
     selectTheme(editortheme);
     // and font size
     var cookieeditorfontsize = $.cookie("editorfontsize");

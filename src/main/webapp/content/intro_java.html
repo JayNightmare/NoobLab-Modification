@@ -49,16 +49,46 @@ public class Main {
     </div>
 
     <div class="section">
-        <h2 class="title">Exercise: Print Your Name</h2>
-        <p>Write a program that prints "My name is [Your Name]".</p>
-        <p>Replace <code>[Your Name]</code> with your actual name.</p>
+        <h2 class="title">Exercise: Print Hello, [Your Name]</h2>
+        <p>Write a program that prints "Hello, [Your Name]".</p>
+        <p>Replace <code>[Your Name]</code> with your actual username (e.g. "Hello, student").</p>
         
-        <div class="testCase" data-id="java_intro_ex1" data-medal="Bronze">
-            <div class="testCode">
-                // Test logic would go here
-                // For now, we rely on manual verification or simple output matching if supported
+        <div class="testCase" data-id="java_intro_ex1" data-medal="Bronze:Hello World">
+            <div class="test">
+                <div class="code">
+                String output = baos.toString();
+                String lowerOutput = output.toLowerCase();
+                String expected = "hello, " + username.toLowerCase();
+                
+                if (lowerOutput.contains(expected)) {
+                    return true;
+                }
+                
+                if (output.trim().isEmpty()) {
+                     oldSysOut.println("I can't hear you! You didn't print anything! Use System.out.println(...)");
+                     return false;
+                }
+                
+                if (lowerOutput.contains("hello world")) {
+                    oldSysOut.println("Classic 'Hello World', but I want to know who YOU are! Say 'Hello, " + username + "'!");
+                    return false;
+                }
+                
+                if (lowerOutput.contains("hello " + username.toLowerCase()) && !lowerOutput.contains(",")) {
+                    oldSysOut.println("Whoa there, where's the comma? Grammar police are watching! It's 'Hello, " + username + "'!");
+                    return false;
+                }
+                
+                if (lowerOutput.contains("hello,") && !lowerOutput.contains(username.toLowerCase())) {
+                    oldSysOut.println("Hello, who? I don't know you! Use your username: " + username);
+                    return false;
+                }
+                
+                oldSysOut.println("Not quite! I expected: 'Hello, " + username + "'. You said: " + output.trim());
+                return false;
+                </div>
             </div>
-            <div class="testDesc">Print "My name is..."</div>
+            <div class="testDesc">Print "Hello, [Your Name]"</div>
         </div>
     </div>
 </body>

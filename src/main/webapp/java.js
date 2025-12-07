@@ -8,6 +8,12 @@ var javaFailTips = [];
 var javaTestCount = 0;
 
 var alternateScanner;
+var ipcRenderer;
+try {
+    ipcRenderer = require("electron").ipcRenderer;
+} catch (e) {
+    console.log("Electron IPC not available");
+}
 
 $.getScript(contextPath + "/confetti.js");
 
@@ -1816,7 +1822,11 @@ var JavaTestManager = {
                 linkText = linkText.replace("ribbon medal", "ribbon");
             }
 
+            var originalContent = $(this).html();
             $(this).text(linkText);
+            $(this).append(
+                '<div style="display:none;">' + originalContent + "</div>"
+            );
 
             $(this).append(
                 '<span class="override"><br/><input type="password"/><button>Override</button><button>Hide</button></div>'
@@ -1912,6 +1922,12 @@ var JavaTestManager = {
     },
 
     generateHarness: function (testData, classname) {
+        console.log(
+            "Generating harness. Username:",
+            typeof currentUsername !== "undefined"
+                ? currentUsername
+                : "undefined"
+        );
         var harness =
             "import java.io.ByteArrayOutputStream;\n" +
             "import java.io.ByteArrayInputStream;\n" +
@@ -1921,6 +1937,11 @@ var JavaTestManager = {
             "import java.lang.reflect.*;\n" +
             "public class NoobLabTester {\n" +
             "    static ByteArrayOutputStream baos = new ByteArrayOutputStream();\n" +
+            '    public static String username = "' +
+            (typeof currentUsername !== "undefined"
+                ? currentUsername.replace(/"/g, '\\"')
+                : "student") +
+            '";\n' +
             "    public static PrintStream oldSysOut = System.out;\n" +
             "    public static InputStream oldSysIn = System.in;\n" +
             "    public static void main(String[] args) throws IOException {\n" +
@@ -2038,7 +2059,11 @@ var JavaTestManager = {
                     '        doppio.JavaScript.eval("parent.javaTestCount++");\n';
 
             var inputStr =
-                test.inputs.join("\n") + "\nrandom\nrandom\nrandom\nrandom";
+                test.inputs
+                    .map(function (s) {
+                        return s.replace(/"/g, '\\"');
+                    })
+                    .join("\\n") + "\\nrandom\\nrandom\\nrandom\\nrandom";
             harness += '        String inputValues = "' + inputStr + '";\n';
             harness +=
                 "        ByteArrayInputStream bais = new ByteArrayInputStream(inputValues.trim().getBytes());\n" +
@@ -2047,18 +2072,28 @@ var JavaTestManager = {
             var shouldRunMain =
                 test.runMain ||
                 $("div.parameter#multi").text().trim() != "true";
+
+            harness += "        try {\n";
             if (shouldRunMain) {
-                harness += "        " + classname + ".main(new String[5]);\n";
+                harness +=
+                    "            " + classname + ".main(new String[5]);\n";
             }
 
             var testCode = js_beautify(test.code);
-            harness += "        " + testCode + "\n";
-
             harness +=
-                "        bais.close();\n" +
-                "        System.setIn(oldSysIn);\n" +
-                "        return false;\n" +
-                "    }\n";
+                "            " +
+                testCode.replace(/\n/g, "\n            ") +
+                "\n";
+
+            if (!testCode.trim().match(/return\s+[^;]+;\s*$/)) {
+                harness += "            return false;\n";
+            }
+
+            harness += "        } finally {\n";
+            harness += "            bais.close();\n";
+            harness += "            System.setIn(oldSysIn);\n";
+            harness += "        }\n";
+            harness += "    }\n";
         }
 
         harness += "}\n";
@@ -2067,6 +2102,21 @@ var JavaTestManager = {
 
     run: function (element) {
         var testData = this.parseTest(element);
+        var code = editor.getValue();
+
+        var debugMsg =
+            "--- TEST DEBUG START ---\n" +
+            "Editor Content: " +
+            code +
+            "\n" +
+            "Test Data: " +
+            JSON.stringify(testData, null, 2) +
+            "\n" +
+            "--- TEST DEBUG END ---";
+        console.log(debugMsg);
+        if (ipcRenderer) {
+            ipcRenderer.send("log", debugMsg);
+        }
 
         if (numTestMon) {
             clearInterval(numTestMon);
@@ -2239,6 +2289,8 @@ var JavaTestManager = {
         if (medal) {
             var medalData = medal.split(":");
             var medalName = medalData[1];
+            if (!medalName || medalName === "undefined")
+                medalName = "Challenge";
             var medalType =
                 medalData[0] == "ribbon"
                     ? medalData[0]
@@ -2261,6 +2313,41 @@ var JavaTestManager = {
                 if (typeof confetti !== "undefined" && confetti.start) {
                     confetti.start(3000);
                 }
+
+                // Check if already earned
+                var alreadyEarned = false;
+                if (
+                    typeof userProgress !== "undefined" &&
+                    userProgress.medals
+                ) {
+                    alreadyEarned = userProgress.medals.some(function (m) {
+                        return m.medalId === medalName;
+                    });
+                }
+
+                if (!alreadyEarned && ipcRenderer) {
+                    ipcRenderer.send("save-medal", {
+                        username:
+                            typeof currentUsername !== "undefined"
+                                ? currentUsername
+                                : "student",
+                        medalId: medalName,
+                        medalType: medalData[0],
+                    });
+
+                    // Optimistically update local state
+                    if (typeof userProgress !== "undefined") {
+                        if (!userProgress.medals) userProgress.medals = [];
+                        userProgress.medals.push({
+                            medalId: medalName,
+                            medalType: medalData[0],
+                        });
+                    }
+                }
+
+                if (typeof updateExerciseStatus === "function") {
+                    updateExerciseStatus();
+                }
             }
         }
 
@@ -2280,3 +2367,32 @@ var JavaTestManager = {
         javaRuntimeError = standardJavaRuntimeError;
     },
 };
+
+function updateExerciseStatus() {
+    if (typeof userProgress === "undefined" || !userProgress.medals) return;
+
+    $(".testCase").each(function () {
+        var medalAttr = $(this).attr("data-medal");
+        if (medalAttr) {
+            var medalName = medalAttr.split(":")[1];
+            var earned = userProgress.medals.some(function (m) {
+                return m.medalId === medalName;
+            });
+            if (earned) {
+                if (!$(this).hasClass("completed")) {
+                    $(this).addClass("completed");
+                    $(this).css("background-color", "#dff0d8");
+                    var desc = $(this).find(".testDesc");
+                    if (desc.text().indexOf("(Completed)") === -1) {
+                        desc.append(" (Completed)");
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Call update on load if possible
+$(document).ready(function () {
+    setTimeout(updateExerciseStatus, 1000); // Delay to ensure userProgress is loaded
+});

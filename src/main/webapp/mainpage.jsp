@@ -13,6 +13,28 @@
         <%-- put current ${pageContext.request.contextPath} into Javascript land --%>
         <script type="text/javascript">
             var contextPath = "${pageContext.request.contextPath}";
+            var currentUsername = "${sessionScope.username}";
+            
+            // Electron IPC for User Data
+            var userProgress = { medals: [] };
+            try {
+                const { ipcRenderer } = require('electron');
+                if (currentUsername && currentUsername !== "") {
+                    ipcRenderer.send('get-user-data', { username: currentUsername });
+                    ipcRenderer.on('user-data', (event, data) => {
+                        if (data.success) {
+                            userProgress = data.user;
+                            console.log("User data loaded:", userProgress);
+                            if (typeof updateExerciseStatus === 'function') {
+                                updateExerciseStatus();
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log("Electron IPC not available in mainpage");
+            }
+
             var embed = false;
             var sourceips = [ "${header["X-Forwarded-For"]}","${pageContext.request.remoteHost}" ];
             <c:if test="${embed}">

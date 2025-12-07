@@ -24,8 +24,71 @@ mongoose
     })
     .catch((err) => console.log("MongoDB Connection Error:", err));
 
-const UserSchema = new mongoose.Schema({ username: String, password: String });
+const UserSchema = new mongoose.Schema({
+    username: String,
+    password: String,
+    medals: [
+        {
+            medalId: String,
+            medalType: String,
+            timestamp: { type: Date, default: Date.now },
+        },
+    ],
+});
 const User = mongoose.model("User", UserSchema);
+
+ipcMain.on("get-user-data", async (event, { username }) => {
+    try {
+        const user = await User.findOne({ username }).lean();
+        if (user) {
+            // Ensure _id is a string or removed if not needed, though lean() usually helps.
+            // JSON.parse(JSON.stringify(user)) is a safe bet for IPC.
+            event.reply("user-data", {
+                success: true,
+                user: JSON.parse(JSON.stringify(user)),
+            });
+        } else {
+            event.reply("user-data", {
+                success: false,
+                error: "User not found",
+            });
+        }
+    } catch (e) {
+        event.reply("user-data", { success: false, error: e.message });
+    }
+});
+
+ipcMain.on("log", (event, message) => {
+    console.log("[RENDERER LOG]:", message);
+});
+
+ipcMain.on("save-medal", async (event, { username, medalId, medalType }) => {
+    console.log(`Saving medal for ${username}: ${medalType} - ${medalId}`);
+    try {
+        const user = await User.findOne({ username });
+        if (user) {
+            const exists = user.medals.some((m) => m.medalId === medalId);
+            if (!exists) {
+                await User.updateOne(
+                    { username },
+                    { $push: { medals: { medalId, medalType } } }
+                );
+                event.reply("medal-saved", { success: true, new: true });
+            } else {
+                console.log("Medal already exists");
+                event.reply("medal-saved", { success: true, new: false });
+            }
+        } else {
+            event.reply("medal-saved", {
+                success: false,
+                error: "User not found",
+            });
+        }
+    } catch (e) {
+        console.error("Error saving medal:", e);
+        event.reply("medal-saved", { success: false, error: e.message });
+    }
+});
 
 async function seedDatabase() {
     try {
