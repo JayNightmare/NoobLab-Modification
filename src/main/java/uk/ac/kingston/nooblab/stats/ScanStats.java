@@ -111,7 +111,7 @@ public class ScanStats {
             return "0,0";
         }
         
-        String[] firstLine = myEntries.get(0);
+        String[] firstLine = myEntries.getFirst();
         lastDate = sdf.parse(firstLine[0]);
         
         long seconds = 0;
@@ -174,9 +174,9 @@ public class ScanStats {
 
         // if the first line isn't a login line, treat the first line as such
 
-        if (!myEntries.get(0)[1].equals("login"))
+        if (!myEntries.getFirst()[1].equals("login"))
         {
-            myEntries.get(0)[1] = "login";
+            myEntries.getFirst()[1] = "login";
         }
 
         Date lastLoginDate = null;
@@ -242,10 +242,10 @@ public class ScanStats {
             }
         }
 
-        if (!myEntries.get(myEntries.size()-1)[1].equals("logout"))
+        if (!myEntries.getLast()[1].equals("logout"))
         {
             // one sitting with no logout - use last line as logout date
-            lastLogoutDate = sdf.parse(myEntries.get(myEntries.size()-1)[0]);
+            lastLogoutDate = sdf.parse(myEntries.getLast()[0]);
             //System.out.println("adding period "+lastLoginDate+"-"+lastLogoutDate);
             p = p.plus(new Period(new DateTime(lastLoginDate),new DateTime(lastLogoutDate)));
         }
@@ -420,19 +420,19 @@ public class ScanStats {
        
        for (int i = 0; i < 26; i++)
        {
-           DateTime ld = new DateTime(workshopDates.get(workshopDates.size()-1));
+           DateTime ld = new DateTime(workshopDates.getLast());
            ld = ld.plusDays(7);
            workshopDates.add(ld);
            
-           DateTime ldend = new DateTime(workshopEnds.get(workshopEnds.size()-1));
+           DateTime ldend = new DateTime(workshopEnds.getLast());
            ldend = ldend.plusDays(7);
            workshopEnds.add(ldend);
            
-           DateTime ldalt = new DateTime(workshopDatesAlt.get(workshopDatesAlt.size()-1));
+           DateTime ldalt = new DateTime(workshopDatesAlt.getLast());
            ldalt = ldalt.plusDays(7);
            workshopDatesAlt.add(ldalt);
            
-           DateTime ldendalt = new DateTime(workshopEndsAlt.get(workshopEndsAlt.size()-1));
+           DateTime ldendalt = new DateTime(workshopEndsAlt.getLast());
            ldendalt = ldendalt.plusDays(7);
            workshopEndsAlt.add(ldendalt);
        }      
@@ -775,7 +775,7 @@ public class ScanStats {
                 System.out.print("total="+total+" (possible max: "+rawtotal*6+")");
                 if (total != 0)
                 {
-                    double satfactor = new Double(total)/(rawtotal*6)*100;
+                    double satfactor = Double.valueOf(total)/(rawtotal*6)*100;
                     System.out.print(" satisfaction factor: "+new DecimalFormat("#.##").format(satfactor)+"%");
                 }
                 System.out.println();

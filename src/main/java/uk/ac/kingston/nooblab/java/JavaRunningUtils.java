@@ -111,7 +111,7 @@ public class JavaRunningUtils {
                 // it ain't gonna compile anyway :-)
                 // TODO: handle thing gracefully :-)
             }
-            className = className.replaceAll("[^A-Za-z0-9]", "");
+            className = className.replaceAll("[^A-Za-z0-9_$]", "");
 
             // finally, whack the remapping of IO code onto the end if serverRun
             if (serverRun) code = IORedefiner.modCode(code,id,classWithMain,pkgWithMain);
@@ -266,15 +266,17 @@ public class JavaRunningUtils {
                     while ((javaRunThread.isAlive() || !out.isEmpty()) && timesecs <= 120 && !stopDetected)
                     {
                         // have we had a stop command?
-                        if (!command.isEmpty() && command.get(command.size()-1).equals("stop"))
+                        if (!command.isEmpty() && command.getLast().equals("stop"))
                         {
                             stopDetected = true;
-                            command.remove(command.size()-1);
+                            command.removeLast();
                         }
                         Thread.sleep(1000);
                         timesecs += 1;
                     }
-                    javaRunThread.stop();
+                    if (javaRunThread.isAlive()) {
+                        javaRunThread.interrupt();
+                    }
                     command.add("stop");
                 } catch (Exception e) { e.printStackTrace(); }
             }                        

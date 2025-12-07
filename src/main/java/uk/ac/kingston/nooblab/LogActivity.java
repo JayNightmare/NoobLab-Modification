@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
+import uk.ac.kingston.nooblab.db.DatabaseManager;
 
 /**
  *
@@ -131,7 +132,37 @@ public class LogActivity extends HttpServlet {
             CSVWriter writermedal = new CSVWriter(new FileWriter(medalfile,true));
             String[] csvLinemedal= { datetime,activity,position,details };
             writermedal.writeNext(csvLinemedal);
-            writermedal.close();            
+            writermedal.close();
+            
+            // Save to Database
+            try {
+                int userId = DatabaseManager.getOrCreateUser(username);
+                // Activity format: "Medal"
+                // Details format: "MedalType:MedalName:ExerciseID" or "MedalType:ExerciseID"
+                
+                String[] detailsParts = details.split(":");
+                String medalType = detailsParts[0];
+                String exerciseId = "unknown";
+                
+                if (detailsParts.length >= 3) {
+                    // Format: MedalType:MedalName:ExerciseID
+                    exerciseId = detailsParts[2];
+                } else if (detailsParts.length == 2) {
+                    // Format: MedalType:ExerciseID (if MedalName is missing)
+                    // OR MedalType:MedalName (legacy)
+                    // We can try to guess or just use the second part as ID if it looks like an ID
+                    exerciseId = detailsParts[1];
+                }
+                
+                // We need to get the module ID from session
+                String moduleId = (String) request.getSession().getAttribute("module");
+                if (moduleId == null) moduleId = "unknown";
+                
+                DatabaseManager.saveUserProgress(userId, moduleId, exerciseId, medalType);
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         if(activity.startsWith("Assist"))

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NoobLab Desktop</title>
+    <link rel="stylesheet" href="node_modules/xterm/css/xterm.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: sans-serif;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #content-area {
+            display: flex;
+            flex-direction: row;
+            flex: 1;
+        }
+        #left-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100%;
+
+            position: relative;
+            left: 0;
+        }
+        #webapp-view {
+            flex: 1;
+            border: none;
+            height: 100%;
+        }
+        #right-pane {
+            display: flex;
+            flex-direction: column;
+            width: 500px;
+            height: 100%;
+            background-color: #1e1e1e;
+            border-left: 1px solid #333;
+
+            position: relative;
+            right:0;
+        }
+        #tabs {
+            display: flex;
+            background-color: #252526;
+            height: 35px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .tab {
+            padding: 0 15px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            color: #969696;
+            cursor: pointer;
+            font-size: 13px;
+            border-right: 1px solid #1e1e1e;
+            user-select: none;
+        }
+        .tab.active {
+            background-color: #1e1e1e;
+            color: white;
+            border-top: 1px solid #007acc;
+        }
+        .tab:hover:not(.active) {
+            background-color: #2d2d2d;
+        }
+        #tab-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        #terminal-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #editor-placeholder {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+            color: #666;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        #status-bar {
+            height: 25px;
+            background-color: #007acc;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="content-area">
+            <!-- Left Pane (Web App) -->
+            <div id="left-pane">
+                <webview id="webapp-view" src="about:blank" preload="./webview-preload.js" webpreferences="contextIsolation=no, nodeIntegration=yes"></webview>
+            </div>
+                        
+            <!-- The Native Terminal / IDE Pane -->
+            <div id="right-pane">
+                <div id="tabs">
+                    <div class="tab active" id="tab-terminal" onclick="switchTab('terminal')">Terminal</div>
+                    <div class="tab" id="tab-editor" onclick="switchTab('editor')">Editor</div>
+                </div>
+                <div id="tab-content">
+                    <div id="terminal-container"></div>
+                    <div id="editor-container" style="width:100%; height:100%; display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-bar">
+            <span>Ready</span>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const { Terminal } = require('xterm');
+        const { FitAddon } = require('xterm-addon-fit');
+        const path = require('path');
+
+        // --- Monaco Editor Setup ---
+        function uriFromPath(_path) {
+            var pathName = path.resolve(_path).replace(/\\/g, '/');
+            if (pathName.length > 0 && pathName.charAt(0) !== '/') {
+                pathName = '/' + pathName;
+            }
+            return encodeURI('file://' + pathName);
+        }
+
+        const amdLoader = require('./node_modules/monaco-editor/min/vs/loader.js');
+        const amdRequire = amdLoader.require;
+        const amdDefine = amdLoader.require.define;
+
+        amdRequire.config({
+            baseUrl: uriFromPath(path.join(__dirname, 'node_modules/monaco-editor/min'))
+        });
+
+        // workaround monaco-css not understanding the environment
+        self.module = undefined;
+
+        let editorInstance = null;
+
+        amdRequire(['vs/editor/editor.main'], function() {
+            editorInstance = monaco.editor.create(document.getElementById('editor-container'), {
+                value: [
+                    'public class HelloWorld {',
+                    '    public static void main(String[] args) {',
+                    '        System.out.println("Hello World!");',
+                    '    }',
+                    '}'
+                ].join('\n'),
+                language: 'java',
+                theme: 'vs-dark',
+                automaticLayout: true
+            });
+        });
+        // ---------------------------
+
+        // Initialize Terminal
+        const term = new Terminal({
+            cursorBlink: true,
+            fontFamily: 'Consolas, "Courier New", monospace',
+            fontSize: 14,
+            theme: {
+                background: '#1e1e1e'
+            }
+        });
+        
+        const fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+
+        const terminalContainer = document.getElementById('terminal-container');
+        term.open(terminalContainer);
+        
+        // Initial fit
+        setTimeout(() => {
+            fitAddon.fit();
+        }, 100);
+
+        // Start Shell
+        ipcRenderer.send('terminal-init');
+
+        // Handle Input
+        term.onData(data => {
+            ipcRenderer.send('terminal-input', data);
+        });
+
+        // Handle Output
+        ipcRenderer.on('terminal-incoming', (event, data) => {
+            term.write(data);
+        });
+
+        // Handle Server Ready
+        const webview = document.getElementById('webapp-view');
+        const statusBar = document.getElementById('status-bar');
+        
+        ipcRenderer.on('server-ready', (event, url) => {
+            console.log('Server ready, loading:', url);
+            webview.src = url;
+            document.querySelector('#status-bar span').textContent = 'Connected to Local Server';
+        });
+
+        // Handle Webview IPC Messages (Context Awareness)
+        webview.addEventListener('ipc-message', (event) => {
+            console.log('IPC Message from Webview:', event.channel, event.args);
+            if (event.channel === 'switch-view') {
+                const viewName = event.args[0];
+                if (viewName === 'editor') {
+                    switchTab('editor');
+                } else if (viewName === 'terminal') {
+                    switchTab('terminal');
+                }
+            } else if (event.channel === 'set-code') {
+                const code = event.args[0];
+                if (editorInstance) {
+                    editorInstance.setValue(code);
+                    switchTab('editor'); // Auto-switch to editor when code is set
+                }
+            } else if (event.channel === 'console-log') {
+                console.log('Webview Log:', event.args[0]);
+            }
+        });
+
+        // Splitter Logic
+        const splitter = document.getElementById('splitter');
+        const contentArea = document.getElementById('content-area');
+        const rightPane = document.getElementById('right-pane');
+        const leftPane = document.getElementById('left-pane'); // Add reference to left pane
+        let isDragging = false;
+
+        splitter.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            document.body.style.cursor = 'ew-resize';
+            // Disable pointer events on webview to prevent it capturing mouse
+            webview.style.pointerEvents = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const containerWidth = contentArea.clientWidth;
+            // Calculate new width from right
+            const newPaneWidth = containerWidth - e.clientX;
+            
+            // Constraints (min 100px, max container - 100px)
+            if (newPaneWidth > 100 && newPaneWidth < containerWidth - 100) {
+                rightPane.style.width = `${newPaneWidth}px`;
+                // Left pane is flex: 1, so it will auto-resize
+                
+                fitAddon.fit();
+                if (editorInstance) editorInstance.layout();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+                webview.style.pointerEvents = 'auto';
+                fitAddon.fit();
+                if (editorInstance) editorInstance.layout();
+            }
+        });
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            if (editorInstance) editorInstance.layout();
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabName) {
+            const terminalTab = document.getElementById('tab-terminal');
+            const editorTab = document.getElementById('tab-editor');
+            const terminalContainer = document.getElementById('terminal-container');
+            const editorContainer = document.getElementById('editor-container');
+
+            if (tabName === 'terminal') {
+                terminalTab.classList.add('active');
+                editorTab.classList.remove('active');
+                terminalContainer.style.display = 'block';
+                editorContainer.style.display = 'none';
+                fitAddon.fit();
+            } else {
+                terminalTab.classList.remove('active');
+                editorTab.classList.add('active');
+                terminalContainer.style.display = 'none';
+                editorContainer.style.display = 'block';
+                if (editorInstance) editorInstance.layout();
+            }
+        }
+    </script>
+</body>
+</html>

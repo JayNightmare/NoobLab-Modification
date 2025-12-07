@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Java Variables</title>
+</head>
+<body>
+    <div class="parameter" id="language">java</div>
+    <div class="parameter" id="courseNo">1</div>
+    <div class="parameter" id="lessonNo">2</div>
+    <div class="parameter" id="open">true</div>
+
+    <div class="section">
+        <h2 class="title">Variables and Data Types</h2>
+        <p>In Java, every variable must have a declared type.</p>
+        <ul>
+            <li><code>int</code>: Whole numbers (e.g., 5, -10)</li>
+            <li><code>double</code>: Decimal numbers (e.g., 3.14, -0.5)</li>
+            <li><code>String</code>: Text (e.g., "Hello")</li>
+            <li><code>boolean</code>: True or False</li>
+        </ul>
+        
+        <h3>Example</h3>
+        <pre class="prettyprint">
+int score = 100;
+double price = 19.99;
+String message = "Game Over";
+System.out.println(message + ": " + score);
+        </pre>
+    </div>
+
+    <div class="section">
+        <h2 class="title">Exercise: Personal Details</h2>
+        <p>Write a program that declares the following variables:</p>
+        <ul>
+            <li><code>String name</code> (Set it to "Alice")</li>
+            <li><code>int age</code> (Set it to 20)</li>
+            <li><code>double height</code> (Set it to 1.75)</li>
+        </ul>
+        <p>Then print them in the format: <code>Name: Alice, Age: 20, Height: 1.75</code></p>
+        
+        <div class="testCase" data-id="ex2" data-medal="Bronze">
+            <div class="testCode">
+                <div class="test">
+                    if (consoleOutput().contains("Name: Alice, Age: 20, Height: 1.75")) return true;
+                    return false;
+                </div>
+            </div>
+            <div class="testDesc">Print details correctly</div>
+        </div>
+    </div>
+</body>
+</html>

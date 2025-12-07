@@ -13,6 +13,28 @@
         <%-- put current ${pageContext.request.contextPath} into Javascript land --%>
         <script type="text/javascript">
             var contextPath = "${pageContext.request.contextPath}";
+            var currentUsername = "${sessionScope.username}";
+            
+            // Electron IPC for User Data
+            var userProgress = { medals: [] };
+            try {
+                const { ipcRenderer } = require('electron');
+                if (currentUsername && currentUsername !== "") {
+                    ipcRenderer.send('get-user-data', { username: currentUsername });
+                    ipcRenderer.on('user-data', (event, data) => {
+                        if (data.success) {
+                            userProgress = data.user;
+                            console.log("User data loaded:", userProgress);
+                            if (typeof updateExerciseStatus === 'function') {
+                                updateExerciseStatus();
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log("Electron IPC not available in mainpage");
+            }
+
             var embed = false;
             var sourceips = [ "${header["X-Forwarded-For"]}","${pageContext.request.remoteHost}" ];
             <c:if test="${embed}">
@@ -29,9 +51,11 @@
 
         <%-- our own stuff --%>
         <script type="text/javascript" src="${pageContext.request.contextPath}/nooblab.js?date=09023018"></script>
+        <script type="text/javascript" src="${pageContext.request.contextPath}/modern-layout.js"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/actions.js"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/innerxhtml.js"></script>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/nooblab.css?date=06032018"/>
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/modern.css"/>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/codemirror/lib/codemirror.css"/>
         <c:forEach items="${cmthemes}" var="cmtheme">
         <link rel="stylesheet" href="${pageContext.request.contextPath}/codemirror/theme/${cmtheme}.css"/>
@@ -138,63 +162,68 @@
     </head>
     <body class="main<c:if test="${embed}"> embed</c:if><c:if test="${altstyle != null}"> altstyle</c:if>">
         <div id="loadingspinner"><iframe border="0" src="${pageContext.request.contextPath}/holding.html"></iframe></div>
-         <div id="topnav">
-            <div class="row1">
-                <div style="display: none" title="Logout" id="logout" onclick="logout()"><i class="fa fa-sign-out" aria-hidden="true"></i></div>
-                <div title="Options" id="optionscog" onclick="toggleOptions()"><i class="fa fa-bars"></i></div>
-                <div title="Change zoom settings" id="newzoom" onclick="mainZoom()">Aa</div>
-                <div title="Show graphics output" id="navgraphics" onclick="toggleGraphics()"><i class="fa fa-pie-chart"></i></div>
-<!--                    <div id="content-zoom"><span onclick="scale('zoomin')">&#128474;</span>&nbsp;<span onclick="scale('zoomout')">&#128475;</span></div>                    -->
+        
+        <!-- Modern Header -->
+        <div class="ide-header">
+            <div class="ide-logo">NoobLab <span>Modern</span></div>
+            <div class="ide-toolbar">
+                <button id="runbutton" onclick="run()">Run</button>
+                <button id="stopbutton" onclick="stop()" disabled>Stop</button>
+                <button id="clearbutton" onclick="clearEditor()">Clear</button>
+                <button id="tidy" onclick="tidyCode()">Format</button>
+                <button onclick="window.location.href='${pageContext.request.contextPath}/DashboardServlet'">Dashboard</button>
             </div>
-            <div style="clear:both"></div>
-            <div class="row2">
-                <div id="usermenu">
-                    <div class="extramenu" id="extramenugraphics" onclick="$('div#navgraphics').click()">Show/hide graphics output pane</div>
-                    <div class="extramenu" id="extramenuchat" onclick="$('div#navchat').click()">Show/hide chat pane</div>
-                    <div class="extramenu" id="extramenucoursenav" onclick="$('div#navcourse').click()">Show/hide course navigation</div>
-                    <div class="extramenu" id="extramenulecture" onclick="$('div#navlecture').click()">Show/hide lecture slides</div>
-                    <div class="extramenu" id="extramenuvideo" onclick="$('div#navvideo').click()">Show/hide lecture video</div>
-                    <div class="extramenu" id="extramenuzoon" onclick="mainZoom()">Change zoom level</div>
-                    <div style="display: none" class="extramenu" id="extramenlogout" onclcik="logout()">Logout</div>
-                    <div><a class="medallink" onclick="toggleOptions()" href="${pageContext.request.contextPath}/ScoreTable?type=mymedals">View my medals</a></div>
-                    <div><a class="medallink" onclick="toggleOptions()" href="${pageContext.request.contextPath}/ScoreTable?type=bigtable">View high score<br/>table for module</a></div>
-                    <!--<div onclick="setName()">Set my name</div>-->
-                    <div class="disabled" id="toggleblocks" onclick="toggleOptions(); toggleBlocks()">Disable blocks</div>
-                    <div id="openthemechooser" onclick="openThemeChooser()">Change editor theme</div>
-                    <div id="getembedlink" onclick="getEmbedLink()">Get embed link</div>
-                    <div id="javaruntimemenu" onclick="toggleJavaRuntime()">Use new Java runtime<br/>(old currently in use)</div>
+        </div>
+
+        <div class="ide-container">
+            <!-- Sidebar (Lesson Content) -->
+            <div class="ide-sidebar">
+                <div class="lesson-content">
+                    <c:choose>
+                        <c:when test="${not empty param.content}">
+                            <c:import url="${param.content}"/>
+                        </c:when>
+                        <c:otherwise>
+                            ${contentshtml}
+                        </c:otherwise>
+                    </c:choose>
                 </div>
-                <div id="mainZoomControls">
-                    <i class="fa fa-file-text-o" aria-hidden="true"></i>
-                    <span onclick="scale('zoomout')"><i class="fa fa-search-minus" aria-hidden="true"></i></span>
-                    <span onclick="scale('zoomin')"><i class="fa fa-search-plus" aria-hidden="true"></i></span>
-                    <br/>
-                    <i class="fa fa-file-code-o" aria-hidden="true"></i>
-                    <span onclick="zoomOut()"><i class="fa fa-search-minus" aria-hidden="true"></i></span>
-                    <span onclick="zoomIn()"><i class="fa fa-search-plus" aria-hidden="true"></i></span>
+            </div>
+
+            <!-- Main Area -->
+            <div class="ide-main">
+                <!-- Editor -->
+                <div class="ide-editor-area">
+                    <div id="editor-wrapper">
+                        <div id="code-titlebar" style="display:none">[ Code ]</div>
+                        <c:set var="blang" value="${requestScope.blocklylang != null ? requestScope.blocklylang : 'javascript'}" />
+                        <iframe id="code-blockly" src="${pageContext.request.contextPath}/blockly.jsp?language=${blang}" style="display:none"></iframe>
+                        <div id="code-main"></div>
+                        <div id="filetree"></div>
+                    </div>
+                </div>
+
+                <!-- Output -->
+                <div class="ide-output-area">
+                    <div class="output-header">
+                        <span>Output</span>
+                        <span class="maximisebutton fa fa-window-maximize" onclick="maxMinCode()" style="cursor: pointer;"></span>
+                    </div>
+                    <div class="output-content">
+                        <div id="output-main" style="height:100%"><iframe name="outputframe" id="outputframe" allowTransparency="true" frameborder="0"></iframe></div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div id="content">
-            <audio id="winsound">
-                    <source src="${pageContext.request.contextPath}/images/win.ogg" type="audio/ogg"/>
-                    <source src="${pageContext.request.contextPath}/images/win.mp3" type="audio/mpeg"/>
-                </audio>
-            <audio id="failsound">
-                    <source src="${pageContext.request.contextPath}/images/ouch.ogg" type="audio/ogg"/>
-                    <source src="${pageContext.request.contextPath}/images/ouch.mp3" type="audio/mpeg"/>
-                </audio>
-            <div id="content-inner">
-                ${contentshtml}
-            </div>
-            <c:if test="${transfervar}">
-            <script type="text/javascript">
-                var varTransferredFromServerSide = ${transfervar};
-            </script>
-            </c:if>
+
+        <!-- Hidden / Legacy Elements -->
+        <div id="content" style="display:none">
+             <!-- Legacy content container, might be needed by JS selectors -->
         </div>
-        <%--<img id="nooblabemo" src="${pageContext.request.contextPath}/images/emo5.png"/>--%>
-        <div id="toolbar">
+        
+        <div id="toolbar" style="display:none">
+             <!-- Legacy toolbar, we moved buttons to header -->
+             <!-- But we need to keep the form -->
             <form id="runform" action="RunPage" method="post" target="outputframe" style="display: none">
                 <textarea style="width: 0px; height: 0px; visibility: hidden;" cols="10" rows="10" id="codeinput" name="codeinput"></textarea>
                 <textarea style="width: 0px; height: 0px; visibility: hidden;" cols="10" rows="10" id="codefortest" name="codefortest"></textarea>
@@ -202,22 +231,62 @@
                 <input name="filename" id="filename"/>
                 <input name="tabs" id="tabs"/>
             </form>
-            <div style="float: right"><%-- <i class="fa fa-search-plus" style="position: relative; top: 4px; right: 14px; cursor: pointer" onclick="zoomIn()"></i><i style="position: relative; top: 4px; right: 14px; cursor: pointer" class="fa fa-search-minus" onclick="zoomOut()"></i>--%><span class="maximisebutton fa fa-window-maximize" onclick="maxMinCode()" style="position: relative; top: 4px; right: 2px; cursor: hand; cursor: pointer;"></span></div>
-            &nbsp;<input id="runbutton" type="button" value="Run" onclick="run();"/>
-            <input id="stopbutton" type="button" value="Stop" onclick="stop();" disabled="true"/>
-            <input id="loadbutton" type="button" value="Load file"/>
-            <input id="savebutton" type="button" value="Save file" onclick ="save()"/>
-            <input id="clearbutton" type="button" value="Clear editor" onclick ="clearEditor();"/>
-            <input id="saveallbutton" style="display: none" type="button" value="Save all as zip" onclick ="save(true);"/>
-            <input id="tidy" type="button" value="Tidy" onclick ="tidyCode();"/>
-            <input id="toggleJFS" style="display: none" type="button" value="Show Java FS" onclick="toggleJFS()"/>
-            <input id="toggleEmbed" type="button" value="Show output" onclick="toggleEmbedOutput()"/>
-            <input id="pasteExample" type="button" value="Paste example code" onclick="pasteCodeEmbed()"/>
-            <input id="runMedal" type="button" value="Try for medal" onclick="tryMedalEmbed()"/>
-            <input id="gettersAndSetters" type="button" value="G&S" onclick="$('div#editorRightClick').toggle()"/>
+             <input id="loadbutton" type="button" value="Load file" style="display:none"/>
+             <input id="savebutton" type="button" value="Save file" onclick ="save()" style="display:none"/>
         </div>
 
-        <div style="clear: both"></div>
+        <div id="usermenu" style="display:none">
+             <!-- Legacy user menu, we might need to reimplement its functionality -->
+             <!-- For now, keep it hidden but accessible if JS needs it -->
+             <div class="extramenu" id="extramenudashboard" onclick="window.location.href='${pageContext.request.contextPath}/DashboardServlet'">Go to Dashboard</div>
+             <div id="openthemechooser" onclick="openThemeChooser()">Change editor theme</div>
+        </div>
+        
+        <div id="themechooser">
+            <div class="tbar theme"><div class="close">X</div>Theme Chooser</div>
+            <div class="themes">
+                <div id="theme-default" class="theme" onclick="selectTheme($(this).text().trim())">(default)</div>
+                <c:forEach items="${cmthemes}" var="cmtheme">
+                <div id="theme-${cmtheme}" class="theme" onclick="selectTheme($(this).text().trim())">${cmtheme}</div>
+                </c:forEach>
+            </div>
+        </div>
+        
+        <div id="graphics">
+            <svg class="container">
+                <rect x="0" y="0" width="100%" height="100%" fill="gray"/>
+                <svg class="main" version="1.1" viewBox="0 0 1000 1000" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                    <rect id="graphicsbackground" width="1000" height="1000" fill="white"/>
+                    <clipPath id="clip">
+                        <use xlink:href="#graphicsbackground"/>
+                    </clipPath>
+                    <g clip-path="url(#clip)">
+                    </g>
+                </svg>
+            </svg>
+        </div>
+        
+        <div id="editorRightClick">
+            <div class="option" onclick="addGettersAndSetters('getters')">Add getters</div>
+            <div class="option" onclick="addGettersAndSetters('setters')">Add setters</div>
+            <div class="option" onclick="addGettersAndSetters('both')">Add both getters and setters</div>
+        </div>
+        
+        <img id="embedmedalhighlight" src="${pageContext.request.contextPath}/images/medalgold.png" style="display:none"/>
+        
+        <!-- Audio -->
+        <audio id="winsound">
+            <source src="${pageContext.request.contextPath}/images/win.ogg" type="audio/ogg"/>
+            <source src="${pageContext.request.contextPath}/images/win.mp3" type="audio/mpeg"/>
+        </audio>
+        <audio id="failsound">
+            <source src="${pageContext.request.contextPath}/images/ouch.ogg" type="audio/ogg"/>
+            <source src="${pageContext.request.contextPath}/images/ouch.mp3" type="audio/mpeg"/>
+        </audio>
+
+        ${navbar}
+        
+        <script src="${pageContext.request.contextPath}/monaco-loader.js"></script>
         <script type="text/javascript">
             var stoppit = false;
             var lastFilename = "";
@@ -298,6 +367,10 @@
                                         if (source) LOGcheat(source);
 
                                         editor.setValue(response);
+                                        
+                                        if (typeof NoobLabDesktop !== 'undefined') {
+                                            NoobLabDesktop.setCode(response);
+                                        }
                                         lastcode = response;
                                     }
 
@@ -316,37 +389,33 @@
                     }
             });
         </script>
-        <div id="editor-wrapper">
-            <div id="code-titlebar"><%--<div id="code-blocklytoggle" unselectable="on" onclick="toggleBlockly()">Hide visual editor</div>--%>[ Code ]</div>
-            <iframe id="code-blockly" src="${pageContext.request.contextPath}/blockly.jsp?language=${requestScope.blocklylang}"></iframe>
-            <div id="code-main"><!-- editor will go in here --></div>
-            <div id="filetree"></div>
-        </div>
         <script type="text/javascript">
-            if ($("div.parameter#language").text().trim() == "basic")
-            {
-                editor = CodeMirror(document.getElementById("code-main"),{
-                    value: "${codetext}",
-                    mode:  "basic",
-                    lineNumbers: false
-                });
-            }
-            else if ($("div.parameter#language").text().trim().slice(0,4) == "java")
-            {
-                editor = CodeMirror(document.getElementById("code-main"),{
-                    value: "${codetext}",
-                    mode: "text/x-java",
-                    //tabMode : "shift",
-                    lineNumbers: true
-                });
-            }
-            else if ($("div.parameter#language").text().trim() == "pcode" || $("div.parameter#language").text().trim() == "pcarol")
-            {
-                editor = CodeMirror(document.getElementById("code-main"),{
-                    value: "${codetext}",
-                    mode : "text/plain",
-                    tabMode : "shift",
-                    lineNumbers: true/*,
+            function initCodeMirror() {
+                var cm;
+                if ($("div.parameter#language").text().trim() == "basic")
+                {
+                    cm = CodeMirror(document.getElementById("code-main"),{
+                        value: "${codetext}",
+                        mode:  "basic",
+                        lineNumbers: false
+                    });
+                }
+                else if ($("div.parameter#language").text().trim().slice(0,4) == "java")
+                {
+                    cm = CodeMirror(document.getElementById("code-main"),{
+                        value: "${codetext}",
+                        mode: "text/x-java",
+                        //tabMode : "shift",
+                        lineNumbers: true
+                    });
+                }
+                else if ($("div.parameter#language").text().trim() == "pcode" || $("div.parameter#language").text().trim() == "pcarol")
+                {
+                    cm = CodeMirror(document.getElementById("code-main"),{
+                        value: "${codetext}",
+                        mode : "text/plain",
+                        tabMode : "shift",
+                        lineNumbers: true/*,
                     onKeyEvent : function(a,b){
                         if (stoppit) return;
                         if ($("div.parameter#blockly").text().trim() == "true")
@@ -365,43 +434,60 @@
                             });
                         }
                     }*/
-                });
+                    });
+                }
+                else
+                {
+                    cm = CodeMirror(document.getElementById("code-main"),{
+                        value: "${codetext}",
+                        mode:  "javascript",
+                        lineNumbers: true
+                    });
+                }
+                return cm;
             }
-            else
-            {
-                editor = CodeMirror(document.getElementById("code-main"),{
-                    value: "${codetext}",
-                    mode:  "javascript",
-                    lineNumbers: true
-                });
-            }
-        </script>
 
-        <div id="output-outer">
-            <div id="output-titlebar">[Output]</div>
-            <div id="output-inner">
-                <div id="output-main"><iframe name="outputframe" id="outputframe" allowTransparency="true" frameborder="0"></iframe></div>
-            </div>
-        </div>
-        <div style="clear: both"></div>
-        <div id="horizontaldrag"></div>
-        <div id="themechooser">
-            <div class="tbar theme"><div class="close">X</div>Theme Chooser</div>
-            <div class="themes">
-                <div id="theme-default" class="theme" onclick="selectTheme($(this).text().trim())">(default)</div>
-                <c:forEach items="${cmthemes}" var="cmtheme">
-                <div id="theme-${cmtheme}" class="theme" onclick="selectTheme($(this).text().trim())">${cmtheme}</div>
-                </c:forEach>
-            </div>
-        </div>
-        <div id="graphics">
-            <svg class="container">
-                <rect x="0" y="0" width="100%" height="100%" fill="gray"/>
-                <svg class="main" version="1.1" viewBox="0 0 1000 1000" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                    <rect id="graphicsbackground" width="1000" height="1000" fill="white"/>
-                    <clipPath id="clip">
-                        <use xlink:href="#graphicsbackground"/>
-                    </clipPath>
+            // Initialize CodeMirror first (Fallback/Default)
+            editor = initCodeMirror();
+            
+            // Capture listeners attached by nooblab.js
+            editor._listeners = [];
+            var originalOn = editor.on;
+            editor.on = function(event, handler) {
+                editor._listeners.push({event: event, handler: handler});
+                if (originalOn) originalOn.call(editor, event, handler);
+            };
+
+            // Try to upgrade to Monaco
+            // We use a timeout to ensure the DOM is fully ready and CM is rendered
+            setTimeout(function() {
+                if (typeof initMonacoWrapper === 'function') {
+                    var currentMode = editor.getOption("mode");
+                    var currentValue = editor.getValue();
+                    var codeMain = document.getElementById("code-main");
+                    
+                    initMonacoWrapper(codeMain, {
+                        value: currentValue,
+                        mode: currentMode
+                    }, function(monacoInstance) {
+                        // Transfer listeners
+                        if (editor._listeners) {
+                            editor._listeners.forEach(function(l) {
+                                monacoInstance.on(l.event, l.handler);
+                            });
+                        }
+                        
+                        // Success! Swap global editor reference
+                        // Hide the CodeMirror element
+                        $(codeMain).find(".CodeMirror").hide();
+                        
+                        editor = monacoInstance;
+                        console.log("Switched to Monaco Editor");
+                    });
+                }
+            }, 500);
+        </script>
+    </body>                    </clipPath>
                     <g clip-path="url(#clip)">
                     </g>
                 </svg>

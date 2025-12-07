@@ -7,6 +7,7 @@ package uk.ac.kingston.nooblab.java;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URLDecoder;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -37,18 +38,33 @@ public class GetClassServlet extends HttpServlet
             throws ServletException, IOException
     {       
         HttpSession session = request.getSession();        
-        String username = session.getAttribute("username").toString();
-        String basedir = MiscUtils.getDataDir(request)+"/"+username+"/java/compiled/";
+        Object usernameObj = session.getAttribute("username");
+        String username = (usernameObj != null) ? usernameObj.toString() : "anonymous";
+        
+        String dataDir = MiscUtils.getDataDir(request);
+        if (dataDir == null) dataDir = "noobdata"; // Fallback
+
+        String basedir = dataDir+"/"+username+"/java/compiled/";
         if (request.getParameter("internal") != null)
         {
-            basedir = JavaRunningUtils.class.getResource("/").getPath()+"/";
+            String path = JavaRunningUtils.class.getResource("/").getPath();
+            path = URLDecoder.decode(path, "UTF-8");
+            basedir = path+"/";
         }
         //session.getServletContext().getInitParameter("datadir")+"/"+username+"/java/compiled/";            
         String classFileLoc = request.getParameter("classfile");
+        if (classFileLoc == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing classfile parameter");
+            return;
+        }
         classFileLoc = classFileLoc.replace(".", "/")+".class";
         classFileLoc = basedir+classFileLoc;        
         
         File classFile = new File(classFileLoc);
+        if (!classFile.exists()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Class file not found: " + classFile.getAbsolutePath());
+            return;
+        }
         byte[] classFileBytes = FileUtils.readFileToByteArray(classFile);
    
         String classFileBase64 = Base64.encodeBase64String(classFileBytes);        

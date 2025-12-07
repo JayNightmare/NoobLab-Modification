@@ -170,7 +170,7 @@ approach to DOM manipulation. --%>
                 return input;
             }
             
-            function greatSuccess(medal)
+            function greatSuccess(medal, id)
             {
                 var objDiv = document.getElementById("output-main");
                 
@@ -196,7 +196,7 @@ approach to DOM manipulation. --%>
                    objDiv.innerHTML = htmlToAdd;
                    parent.LOGtestPassed(medal);
                    if (medal) parent.howDoYouFeelAbout(parent.lasttestlink,"Well done! Your code was good enough for a medal!",medalType);
-                   if (medal) parent.LOGmedal(medal);
+                   if (medal) parent.LOGmedal(medal, id);
                    window.scrollTo(0,document.body.scrollHeight);
             }
             

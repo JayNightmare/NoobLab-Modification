@@ -142,8 +142,8 @@ public class JavaRunner extends HttpServlet
                     String extra = "";
                     //synchronized(out)
                     {
-                        extra = out.get(0);
-                        out.remove(0);                    
+                        extra = out.getFirst();
+                        out.removeFirst();                    
                     }
                     pw.print(extra);
                     count++;
@@ -165,7 +165,7 @@ public class JavaRunner extends HttpServlet
             if (!command.isEmpty())
             {
                 response.setContentType("text/plain");
-                pw.print(command.get(command.size()-1));
+                pw.print(command.getLast());
                 pw.close();
             }
             else

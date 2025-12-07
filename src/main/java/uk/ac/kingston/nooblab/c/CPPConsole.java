@@ -62,8 +62,8 @@ public class CPPConsole extends HttpServlet {
                 try { Thread.sleep(100); } catch (InterruptedException ex) {}
                 consoleLines = (ArrayList)request.getSession().getAttribute("cppconsole");
             }
-            String topline = consoleLines.get(0);
-            consoleLines.remove(0);
+            String topline = consoleLines.getFirst();
+            consoleLines.removeFirst();
             request.getSession().setAttribute("cppconsole", consoleLines);
             out.println(topline);
             

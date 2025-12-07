@@ -8,35 +8,41 @@ var javaFailTips = [];
 var javaTestCount = 0;
 
 var alternateScanner;
+var ipcRenderer;
+try {
+    ipcRenderer = require("electron").ipcRenderer;
+} catch (e) {
+    console.log("Electron IPC not available");
+}
 
-$.get(contextPath+"/newdoppio/Scanner.java",function(result){
-   alternateScanner = result;
+$.getScript(contextPath + "/confetti.js");
+
+$.get(contextPath + "/newdoppio/Scanner.java", function (result) {
+    alternateScanner = result;
 });
 
-function writeBase64(base64,path,name)
-{
-    var fd = outputframe.fs.openSync(path+name, 'w');
-    var buff = new outputframe.Buffer(base64, 'base64');
+function writeBase64(base64, path, name) {
+    var fd = outputframe.fs.openSync(path + name, "w");
+    var buff = new outputframe.Buffer(base64, "base64");
     outputframe.fs.writeSync(fd, buff, 0, buff.length, 0);
     outputframe.fs.closeSync(fd);
 }
 
 // automatically runs once (new) Doppio has finished loading...
-function postDoppio()
-{
+function postDoppio() {
     // automatically run any file-system automatic uploads
-    $("div.javafs-file.automatic").each(function(){
-         pushToJFS("auto",this);
-     });
+    $("div.javafs-file.automatic").each(function () {
+        pushToJFS("auto", this);
+    });
 }
 
-function getMainsPkgs(codeTabs)
-{
+function getMainsPkgs(codeTabs) {
     //var codeTabs = getTabBundleCode(true)[0];
     var mainsPkgs = [];
-    $.each(codeTabs,function(i,codeTab){
+    $.each(codeTabs, function (i, codeTab) {
         var className = getClassName(codeTab);
-        if (hasMain(codeTab)) mainsPkgs.push([ className,getPackageName(codeTab)]);
+        if (hasMain(codeTab))
+            mainsPkgs.push([className, getPackageName(codeTab)]);
     });
     return mainsPkgs;
 }
@@ -45,16 +51,16 @@ function getDirectories(filename) {
     var fs = outputframe.fs;
     var stats = fs.lstatSync(filename),
         info = {
-            name : filename.split("/").pop(),
-            fullname : filename,
-            path : filename.substring(0, filename.lastIndexOf("/"))/*,
-            name: path.basename(filename) */
+            name: filename.split("/").pop(),
+            fullname: filename,
+            path: filename.substring(0, filename.lastIndexOf("/")) /*,
+            name: path.basename(filename) */,
         };
 
     if (stats.isDirectory()) {
         info.type = "folder";
-        info.children = fs.readdirSync(filename).map(function(child) {
-            return getDirectories(filename + '/' + child);
+        info.children = fs.readdirSync(filename).map(function (child) {
+            return getDirectories(filename + "/" + child);
         });
     } else {
         // Assuming it's a file. In real life it could be a symlink or
@@ -64,193 +70,219 @@ function getDirectories(filename) {
     return info;
 }
 
-function updateFileTree(startup)
-{
-    $('#filetree').tree('destroy');
+function updateFileTree(startup) {
+    $("#filetree").tree("destroy");
     // get a file listing from the "file system"
     var files = getDirectories("/tmp/myfiles");
-    var data = [{
-        name : '(my Java files)',
-        children : files.children,
-        fullname : "/tmp/myfiles",
-        type : "root"
-    }];
-    $('#filetree').tree({
-        data : data,
+    var data = [
+        {
+            name: "(my Java files)",
+            children: files.children,
+            fullname: "/tmp/myfiles",
+            type: "root",
+        },
+    ];
+    $("#filetree").tree({
+        data: data,
         autoOpen: "auto",
-        closedIcon: '+',
-        openedIcon: '-',
-        onCreateLi : function(node,li) {
+        closedIcon: "+",
+        openedIcon: "-",
+        onCreateLi: function (node, li) {
             li.addClass(node.type);
-            li.attr("data-fullname",node.fullname);
-            var controls = $('<div class="controls"><i class="fa fa-binoculars display" onclick="displayFileFromJavaFS(this)"></i> <i class="fa fa-plus-square addfile" onclick="addFileToJavaFS(this); return false" title="Upload file"></i> <i class="fa fa-folder addfolder" title="Add folder" onclick="addFolderToJavaFS(this)"><span>+</span></i> <i class="fa fa-trash delete" title="Delete file/directory" onclick="deleteFileOrFolderJavaFS(this)"></i></div>');
+            li.attr("data-fullname", node.fullname);
+            var controls = $(
+                '<div class="controls"><i class="fa fa-binoculars display" onclick="displayFileFromJavaFS(this)"></i> <i class="fa fa-plus-square addfile" onclick="addFileToJavaFS(this); return false" title="Upload file"></i> <i class="fa fa-folder addfolder" title="Add folder" onclick="addFolderToJavaFS(this)"><span>+</span></i> <i class="fa fa-trash delete" title="Delete file/directory" onclick="deleteFileOrFolderJavaFS(this)"></i></div>'
+            );
             li.find("div").append(controls);
-        }
+        },
     });
-    if (!startup)
-    {
-        var topnode = $('#filetree').tree('getNodeByHtmlElement',$("#filetree li").eq(0));
-        $("#filetree").tree("selectNode",topnode);
-    }
-    else
-    {
-        var li = $("#filetree").find("li[data-fullname='"+startup+"']");
-        var topnode = $('#filetree').tree('getNodeByHtmlElement',li);
-        $("#filetree").tree("selectNode",topnode);
+    if (!startup) {
+        var topnode = $("#filetree").tree(
+            "getNodeByHtmlElement",
+            $("#filetree li").eq(0)
+        );
+        $("#filetree").tree("selectNode", topnode);
+    } else {
+        var li = $("#filetree").find("li[data-fullname='" + startup + "']");
+        var topnode = $("#filetree").tree("getNodeByHtmlElement", li);
+        $("#filetree").tree("selectNode", topnode);
     }
 }
 
-function deleteFileOrFolderJavaFS(source)
-{
+function deleteFileOrFolderJavaFS(source) {
     var li = $(source).closest("li");
-    var targetNode = $('#filetree').tree('getNodeByHtmlElement',li);
+    var targetNode = $("#filetree").tree("getNodeByHtmlElement", li);
     var targetname = targetNode.fullname;
     var filename = targetNode.name;
 
-    apprise("This will delete "+filename+" and, if it's a directory, everything in it! Are you sure?",{confirm:true},function(r){
-        if (r)
-        {
-            if (targetNode.type == "file") outputframe.fs.unlinkSync(targetname);
-            if (targetNode.type == "folder") deleteFolderRecursive(targetname);
+    apprise(
+        "This will delete " +
+            filename +
+            " and, if it's a directory, everything in it! Are you sure?",
+        { confirm: true },
+        function (r) {
+            if (r) {
+                if (targetNode.type == "file")
+                    outputframe.fs.unlinkSync(targetname);
+                if (targetNode.type == "folder")
+                    deleteFolderRecursive(targetname);
+            }
+            updateFileTree();
         }
-        updateFileTree();
-    });
+    );
 
-    function deleteFolderRecursive(path)
-    {
+    function deleteFolderRecursive(path) {
         var fs = outputframe.fs;
         if (fs.existsSync(path)) {
-          fs.readdirSync(path).forEach(function(file, index){
-            var curPath = path + "/" + file;
-            if (fs.lstatSync(curPath).isDirectory()) { // recurse
-              deleteFolderRecursive(curPath);
-            } else { // delete file
-              fs.unlinkSync(curPath);
-            }
-          });
-          fs.rmdirSync(path);
+            fs.readdirSync(path).forEach(function (file, index) {
+                var curPath = path + "/" + file;
+                if (fs.lstatSync(curPath).isDirectory()) {
+                    // recurse
+                    deleteFolderRecursive(curPath);
+                } else {
+                    // delete file
+                    fs.unlinkSync(curPath);
+                }
+            });
+            fs.rmdirSync(path);
         }
     }
 }
 
-function displayFileFromJavaFS(source)
-{
+function displayFileFromJavaFS(source) {
     var li = $(source).closest("li");
-    var targetNode = $('#filetree').tree('getNodeByHtmlElement',li);
+    var targetNode = $("#filetree").tree("getNodeByHtmlElement", li);
     var targetname = targetNode.fullname;
-    outputframe.runShellCommand("cat "+targetname);
+    outputframe.runShellCommand("cat " + targetname);
     updateFileTree(targetname);
 }
 
-function toggleJFS()
-{
+function toggleJFS() {
     $("#filetree").toggle();
-    if ($("#filetree").is(":visible"))
-    {
+    if ($("#filetree").is(":visible")) {
         $("input#toggleJFS").val("Hide Java FS");
-    }
-    else
-    {
+    } else {
         $("input#toggleJFS").val("Show Java FS");
     }
     updateFileTree();
 }
 
-function addFileToJavaFS(source)
-{
+function addFileToJavaFS(source) {
     var li = $(source).closest("li");
-    var targetNode = $('#filetree').tree('getNodeByHtmlElement',li);
+    var targetNode = $("#filetree").tree("getNodeByHtmlElement", li);
     var dirname = targetNode.fullname;
 
     // create file input and then click it
-    $("body").append('<input type="file" id="tempfilejava" style="display: none"/>');
-    $("input#tempfilejava").on("change",function(){
+    $("body").append(
+        '<input type="file" id="tempfilejava" style="display: none"/>'
+    );
+    $("input#tempfilejava").on("change", function () {
         var file = $("input#tempfilejava")[0].files[0];
-        var filename = $("input#tempfilejava").val().split('/').pop().split('\\').pop();
+        var filename = $("input#tempfilejava")
+            .val()
+            .split("/")
+            .pop()
+            .split("\\")
+            .pop();
         var reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             var base64 = e.target.result.toString();
             base64 = base64.split(",").pop();
             // upload file to targetdir
-            writeBase64(base64,dirname+"/",filename);
-            updateFileTree(dirname+"/",filename);
+            writeBase64(base64, dirname + "/", filename);
+            updateFileTree(dirname + "/", filename);
         };
-    })
+    });
     $("input#tempfilejava").click();
 }
 
-function addFolderToJavaFS(source)
-{
+function addFolderToJavaFS(source) {
     var li = $(source).closest("li");
-    var targetNode = $('#filetree').tree('getNodeByHtmlElement',li);
+    var targetNode = $("#filetree").tree("getNodeByHtmlElement", li);
     var dirname = targetNode.fullname;
-    apprise("Enter the folder name you want to create:", {'input':true}, function(r)
-    {
-        if (r)
-        {
-            outputframe.fs.mkdirSync(dirname+"/"+r);
-            updateFileTree(dirname+"/",r);
+    apprise(
+        "Enter the folder name you want to create:",
+        { input: true },
+        function (r) {
+            if (r) {
+                outputframe.fs.mkdirSync(dirname + "/" + r);
+                updateFileTree(dirname + "/", r);
+            }
         }
-    });
+    );
 }
 
-function pushToJFS(noprompt,source)
-{
+function pushToJFS(noprompt, source) {
     if (!source) source = this;
     var files = [];
     var basedir = $(source).attr("data-basedir");
-    $(source).find("pre").each(function(){
-        var obj = {};
-        obj.filename = $(this).attr("data-filename");
-        obj.data = $(this).text().trim();
-        files.push(obj);
-    });
+    $(source)
+        .find("pre")
+        .each(function () {
+            var obj = {};
+            obj.filename = $(this).attr("data-filename");
+            obj.data = $(this).text().trim();
+            files.push(obj);
+        });
 
-    if (noprompt === "auto")
-    {
+    if (noprompt === "auto") {
         performUpload("auto");
-    }
-    else
-    {
-        var msg = "This will create a folder called <b>"+basedir+"</b> in your <b>myfiles</b> directory which will contain a file called <b>"+files[0].filename+"</b>. Are you sure?";
-        if (files.length > 1)
-        {
-            msg = "This will create a folder called <b>"+basedir+"</b> in your <b>myfiles</b> directory which will contain the following files:<p>";
-            for (var i = 0; i < files.length; i++)
-            {
-                msg+="<b>"+files[i].filename+"</b><br/>";
+    } else {
+        var msg =
+            "This will create a folder called <b>" +
+            basedir +
+            "</b> in your <b>myfiles</b> directory which will contain a file called <b>" +
+            files[0].filename +
+            "</b>. Are you sure?";
+        if (files.length > 1) {
+            msg =
+                "This will create a folder called <b>" +
+                basedir +
+                "</b> in your <b>myfiles</b> directory which will contain the following files:<p>";
+            for (var i = 0; i < files.length; i++) {
+                msg += "<b>" + files[i].filename + "</b><br/>";
             }
             msg += "&nbsp;<br/>Are you sure?";
         }
-        apprise(msg,{confirm:true},performUpload);
+        apprise(msg, { confirm: true }, performUpload);
     }
 
-    function performUpload(r)
-    {
-       if (r)
-       {
-            if (!outputframe.fs.existsSync("/myfiles/"+basedir)) outputframe.fs.mkdirSync("/myfiles/"+basedir);
-            for (var i = 0; i < files.length; i++)
-            {
-                var base64 =  $.base64.encode(files[i].data);
-                writeBase64(base64,"/myfiles/"+basedir+"/",files[i].filename);
+    function performUpload(r) {
+        if (r) {
+            if (!outputframe.fs.existsSync("/myfiles/" + basedir))
+                outputframe.fs.mkdirSync("/myfiles/" + basedir);
+            for (var i = 0; i < files.length; i++) {
+                var base64 = $.base64.encode(files[i].data);
+                writeBase64(
+                    base64,
+                    "/myfiles/" + basedir + "/",
+                    files[i].filename
+                );
             }
             updateFileTree();
-            if (r === true) setTimeout(function() { apprise("File(s) successfully pushed to your Java file system in <b>/myfiles/"+basedir+"</b>."); },50);
-       }
+            if (r === true)
+                setTimeout(function () {
+                    apprise(
+                        "File(s) successfully pushed to your Java file system in <b>/myfiles/" +
+                            basedir +
+                            "</b>."
+                    );
+                }, 50);
+        }
     }
 }
 
-
-
-function runjava()
-{
+function runjava() {
     // PN: HACK ON 15/01/2021
     // Check to see if they are creating a scanner in a code block in a pidgin mode exercise
-    if (editor.getValue().match(/\{[\s\S]*.*new Scanner/) && $("div#multi").text().trim() != "true")
-    {
-        var x = confirm("Your code appears to create multiple Scanner objects which almost certainly is not what you want, and will make it seem as if you are not winning medals when you should be. You should usually only create one instance of Scanner towards the very start of your program and reuse this single instance as you need it. Click OK to ignore this and run the code anyway, but don't expect it to win any medals if you do...!");
+    if (
+        editor.getValue().match(/\{[\s\S]*.*new Scanner/) &&
+        $("div#multi").text().trim() != "true"
+    ) {
+        var x = confirm(
+            "Your code appears to create multiple Scanner objects which almost certainly is not what you want, and will make it seem as if you are not winning medals when you should be. You should usually only create one instance of Scanner towards the very start of your program and reuse this single instance as you need it. Click OK to ignore this and run the code anyway, but don't expect it to win any medals if you do...!"
+        );
         if (!x) return;
     }
 
@@ -259,33 +291,32 @@ function runjava()
     javaRuntimeError = standardJavaRuntimeError;
     $("div#output-main div.status").remove();
 
-    if (numTestMon)
-    {
+    if (numTestMon) {
         clearInterval(numTestMon);
         numTestMon = undefined;
     }
 
     // reset and show console
-    if (!newdoppio)
-    {
-        $("div#console pre",outputframe.document).show();
+    if (!newdoppio) {
+        $("div#console pre", outputframe.document).show();
     }
 
-    if (editorfontsize)
-    {
-        $("iframe#outputframe").contents().find("body").css("font-size",editorfontsize+"px")
+    if (editorfontsize) {
+        $("iframe#outputframe")
+            .contents()
+            .find("body")
+            .css("font-size", editorfontsize + "px");
     }
 
     // JQuery console is as glitchy as hell. If at first you don't succeed...
     //$("div#main pre",outputframe.document).text("");
-    if (!newdoppio)
-    {
-        outputframe.controller.reset();
-        outputframe.controller.reset();
-        outputframe.controller.reset();
-    }
-    else
-    {
+    if (!newdoppio) {
+        if (outputframe.controller) {
+            outputframe.controller.reset();
+            outputframe.controller.reset();
+            outputframe.controller.reset();
+        }
+    } else {
         // not sure why we need the reset/blur/focus combo - focus doesn't seem to work without the preceding blur - but hey ho
         outputframe.globalTerm.reset();
         outputframe.globalTerm.blur();
@@ -293,87 +324,96 @@ function runjava()
     }
 
     var codeMess = getTabBundleCode();
-    if (codeMess.match(/import\s*java.awt/) || codeMess.match(/import\s*javax.swing/))
-    {
-        apprise("This code tries to use graphical libraries that are not supported in NoobLab."+
-                "You cannot run this code in this environment. If this message was unexpected, please speak to your tutor.");
+    if (
+        codeMess.match(/import\s*java.awt/) ||
+        codeMess.match(/import\s*javax.swing/)
+    ) {
+        apprise(
+            "This code tries to use graphical libraries that are not supported in NoobLab." +
+                "You cannot run this code in this environment. If this message was unexpected, please speak to your tutor."
+        );
         return;
     }
 
     var codeTabs = getTabBundleCode(true)[0];
 
-    if ($("div.parameter#multi").text().trim() != "true")
-    {
+    if ($("div.parameter#multi").text().trim() != "true") {
         var code = codeTabs[0];
-        if (!code.match(/\s*class\s*/) && !code.match(/\s*void\s*main/))
-        {
+        if (!code.match(/\s*class\s*/) && !code.match(/\s*void\s*main/)) {
             // pigin Java :-) Wrap a class/main around it
-            code = "import java.util.Scanner; public class Pigin { public static void main(String[] args) { "+code+"\n} }";
+            code =
+                "import java.util.Scanner; public class Pigin { public static void main(String[] args) { " +
+                code +
+                "\n} }";
             codeTabs[0] = code;
         }
     }
 
     var mainsPkgs = getMainsPkgs(codeTabs);
-    if (mainsPkgs.length == 0)
-    {
-        apprise("None of the classes in the editor appear to have a <i>main</i> method. This code cannot be run without one.");
+    if (mainsPkgs.length == 0) {
+        apprise(
+            "None of the classes in the editor appear to have a <i>main</i> method. This code cannot be run without one."
+        );
         return;
     }
 
-    $.each(codeTabs,function(i,codeTab){
-        $("div#code-titlebar div.tab").eq(i).contents().eq(0).replaceWith(getClassName(codeTab)+".java");
+    $.each(codeTabs, function (i, codeTab) {
+        $("div#code-titlebar div.tab")
+            .eq(i)
+            .contents()
+            .eq(0)
+            .replaceWith(getClassName(codeTab) + ".java");
     });
 
     saveState();
-    if (mainsPkgs.length == 1)
-    {
+    if (mainsPkgs.length == 1) {
         // easy... can use our one and only
-        $("div.status",outputframe.window.document).remove();
-        actuallyDoRunJava(codeTabs,mainsPkgs[0]);
+        $("div.status", outputframe.window.document).remove();
+        actuallyDoRunJava(codeTabs, mainsPkgs[0]);
         return;
     }
     // otherwise, it's ambiguous
     // so does the currently selected tab have a main?
     var currentCode = editor.getValue();
-    if (hasMain(currentCode))
-    {
-        apprise("You have several main methods across different classes in your project. Do you want to run the main method in "+
-            "the class currently selected in the editor (<i>"+getClassName(currentCode)+"</i>)?",
-            {verify:true}, function(r)
-        {
-            if (r)
-            {
-                $("div.status",outputframe.window.document).remove();
-                actuallyDoRunJava(codeTabs,getClassName(currentCode));
+    if (hasMain(currentCode)) {
+        apprise(
+            "You have several main methods across different classes in your project. Do you want to run the main method in " +
+                "the class currently selected in the editor (<i>" +
+                getClassName(currentCode) +
+                "</i>)?",
+            { verify: true },
+            function (r) {
+                if (r) {
+                    $("div.status", outputframe.window.document).remove();
+                    actuallyDoRunJava(codeTabs, getClassName(currentCode));
+                }
             }
-        });
+        );
         return;
     }
     // otherwise, ambiguous, and you don't have a main selected
     var mainList = "";
-    $.each(mainsPkgs,function(i,mainPkg){
-        mainList += mainPkg[0]+"<br/>";
+    $.each(mainsPkgs, function (i, mainPkg) {
+        mainList += mainPkg[0] + "<br/>";
     });
-    apprise("You have several main methods across different classes in your project:<br/>"+
-            mainList+"<br/>"+
+    apprise(
+        "You have several main methods across different classes in your project:<br/>" +
+            mainList +
+            "<br/>" +
             "Select one of these classes in the editor in order to indicate which main method you wish to run."
-            );
+    );
 }
 
-function actuallyDoRunJava(codeFiles,main,actuallyRun)
-{
+function actuallyDoRunJava(codeFiles, main, actuallyRun) {
     javaFailTips = [];
     javaTestCount = 0;
-    if (main[1] != undefined)
-    {
+    if (main[1] != undefined) {
         main[1] += ".";
-    }
-    else
-    {
+    } else {
         main[1] = "";
     }
-    main = main[1]+main[0];
-    main = main.replace(/\./g,"/");
+    main = main[1] + main[0];
+    main = main.replace(/\./g, "/");
     if (actuallyRun == undefined) actuallyRun = true;
 
     LOGrun(getTabBundleCode());
@@ -382,27 +422,34 @@ function actuallyDoRunJava(codeFiles,main,actuallyRun)
 
     // remove any "files" already in Doppio
     //outputframe.doCommand("rm *");
-    if (!newdoppio)
-    {
+    if (!newdoppio) {
         outputframe.doCommand("clear_cache");
-    }
-    else
-    {
+    } else {
         // if newdoppio, go through each codefile and modify to introduce a
         // clear screen as first line of main.
         //
         // Also, check for combination of Scanner and File. If both used,
         // we need to switch to using NoobLab.FileScanner.
         var alternateScannerNeeded = false;
-        for (var i = 0; i < codeFiles.length; i++)
-        {
+        for (var i = 0; i < codeFiles.length; i++) {
             // not sure why we need the reset/blur/focus combo, but hey ho
-            codeFiles[i] = codeFiles[i].replace(/(public\s*static\s*void\s*main[\s\S]*?{)/,'$1doppio.JavaScript.eval("globalTerm.reset(); globalTerm.blur(); globalTerm.focus()");');
+            codeFiles[i] = codeFiles[i].replace(
+                /(public\s*static\s*void\s*main[\s\S]*?{)/,
+                '$1doppio.JavaScript.eval("globalTerm.reset(); globalTerm.blur(); globalTerm.focus()");'
+            );
 
-            if (codeFiles[i].indexOf("File") !=-1 && codeFiles[i].indexOf("Scanner") != -1)
-            {
-                codeFiles[i] = codeFiles[i].replace(/\bScanner/g,"Nooblab.Scanner");
-                codeFiles[i] = codeFiles[i].replace(/java.util.NoobLab.Scanner/g,"java.util.Scanner");
+            if (
+                codeFiles[i].indexOf("File") != -1 &&
+                codeFiles[i].indexOf("Scanner") != -1
+            ) {
+                codeFiles[i] = codeFiles[i].replace(
+                    /\bScanner/g,
+                    "Nooblab.Scanner"
+                );
+                codeFiles[i] = codeFiles[i].replace(
+                    /java.util.NoobLab.Scanner/g,
+                    "java.util.Scanner"
+                );
                 alternateScannerNeeded = true;
             }
         }
@@ -415,7 +462,8 @@ function actuallyDoRunJava(codeFiles,main,actuallyRun)
     // inject "code" class for accessing the Java code from the Java code
     // my brain hurts
     // inject Code
-    var codeIncludesClass = (function () {/*
+    var codeIncludesClass = function () {
+        /*
 
 package Java;
 import java.lang.reflect.*;
@@ -722,10 +770,17 @@ public class Code
 
 }
 
-*/}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1];
+*/
+    }
+        .toString()
+        .match(/[^]*\/\*([^]*)\*\/[^]*\}$/)[1];
 
-    var bobbifiedCode = getTabBundleCode(true)[0].join("CAPTAINCLIMAX").replace(/\n/g,"FUCKTHEPANTOMINE").replace(/"/g,"BASEBALLCAP").replace(/\r/g,"");
-    codeIncludesClass = codeIncludesClass.replace(/SARRIESBOB/,bobbifiedCode);
+    var bobbifiedCode = getTabBundleCode(true)[0]
+        .join("CAPTAINCLIMAX")
+        .replace(/\n/g, "FUCKTHEPANTOMINE")
+        .replace(/"/g, "BASEBALLCAP")
+        .replace(/\r/g, "");
+    codeIncludesClass = codeIncludesClass.replace(/SARRIESBOB/, bobbifiedCode);
     codeFiles.push(codeIncludesClass);
 
     /*if (newdoppio)
@@ -741,330 +796,399 @@ public class Code
     status("Compiling...");
 
     $.ajax({
-        data : {
-            mode : "compile",
-            code : codeFiles,
-            newdoppio : (newdoppio) ? true : false,
-           // main : main,
-           // mainPkg : mainPkg
+        data: {
+            mode: "compile",
+            code: codeFiles,
+            newdoppio: newdoppio ? true : false,
+            // main : main,
+            // mainPkg : mainPkg
         },
-        type : "POST",
-        url : contextPath + "/JavaRunner",
+        type: "POST",
+        url: contextPath + "/JavaRunner",
         // code successfully pushed... now try and pull it back and push it into
         // the Doppio file system.
-        success : function(data) {
-            if (data.indexOf("**ERROR**") != -1)
-            {
-                if (data.indexOf("**NEWJAVA**") == -1)
-                {
+        success: function (data) {
+            if (data.indexOf("**ERROR**") != -1) {
+                if (data.indexOf("**NEWJAVA**") == -1) {
                     var msg = data.split(":");
-                    msg.shift(); msg.shift();
+                    msg.shift();
+                    msg.shift();
                     var className = msg.shift().split("/").pop();
                     var lineno = parseInt(msg.shift());
-                    var details = data.split(/\.java:\d+:/)[1].replace(/<|>/ig,function(m){
-                        return '&'+(m=='>'?'g':'l')+'t;';
-                    }).replace(/\n/g,"<br/>");
-                }
-                else
-                {
+                    var details = data
+                        .split(/\.java:\d+:/)[1]
+                        .replace(/<|>/gi, function (m) {
+                            return "&" + (m == ">" ? "g" : "l") + "t;";
+                        })
+                        .replace(/\n/g, "<br/>");
+                } else {
                     var msg = data.split(":");
-                    var className = msg[1].split("/").pop().replace(".java","");
+                    var className = msg[1]
+                        .split("/")
+                        .pop()
+                        .replace(".java", "");
                     var lineno = msg[1].match(/line ([0-9]*) in/)[1];
                     var details = data.split("error:")[1].trim();
-                    details = details.replace(/\n/g,"<br/>");
+                    details = details.replace(/\n/g, "<br/>");
                 }
-                if (details.indexOf("FUCKTHEPANTOMINE") != -1) details = "Something went seriously wrong internally with this medal test.<br/>Please report this error to your lecturer.<br/>Be sure to include a copy of your code.";
-                status('Error on line '+lineno+' in class '+className+"<br/>"+details,"error");
-                if (className+".java" != $("div.tab.selected").text().trim())
-                {
+                if (details.indexOf("FUCKTHEPANTOMINE") != -1)
+                    details =
+                        "Something went seriously wrong internally with this medal test.<br/>Please report this error to your lecturer.<br/>Be sure to include a copy of your code.";
+                status(
+                    "Error on line " +
+                        lineno +
+                        " in class " +
+                        className +
+                        "<br/>" +
+                        details,
+                    "error"
+                );
+                if (
+                    className + ".java" !=
+                    $("div.tab.selected").text().trim()
+                ) {
                     // switch to the right tab for the error
-                    $("div.tab").not(".newtab").contents()
-                        .filter(function() {
-                          return this.nodeType === 3 && $(this).text().trim() == className+".java"; //Node.TEXT_NODE
-                    }).parent().click();
+                    $("div.tab")
+                        .not(".newtab")
+                        .contents()
+                        .filter(function () {
+                            return (
+                                this.nodeType === 3 &&
+                                $(this).text().trim() == className + ".java"
+                            ); //Node.TEXT_NODE
+                        })
+                        .parent()
+                        .click();
                     // frell me, JQuery is bloody awesome
                 }
 
-                if (newdoppio)
-                {
+                if (newdoppio) {
                     $("div#output-main div.status").remove();
                 }
 
-                LOGsyntaxError("Error in line "+lineno+" of "+className+", "+details);
+                LOGsyntaxError(
+                    "Error in line " +
+                        lineno +
+                        " of " +
+                        className +
+                        ", " +
+                        details
+                );
                 editor.focus();
-                editor.setCursor(parseInt(lineno)-1);
+                editor.setCursor(parseInt(lineno) - 1);
                 //editor.setLineClass(parseInt(lineno)-1,"error");
-                editor.addLineClass(parseInt(lineno)-1,"background","error");
+                editor.addLineClass(
+                    parseInt(lineno) - 1,
+                    "background",
+                    "error"
+                );
                 enableRun();
-            }
-            else
-            {
+            } else {
                 var classes = data.split(":");
 
                 classes.pop(); // remove empty last
 
                 // Clear anything in the /tmp directory...
-                if (newdoppio) outputframe.fs.getRootFS().mntMap["/tmp"].empty();
+                if (newdoppio)
+                    outputframe.fs.getRootFS().mntMap["/tmp"].empty();
 
-                $.each(classes,function(i,clas){
-
+                $.each(classes, function (i, clas) {
                     $.ajax({
-                       data : { classfile : clas },
-                       type : "POST",
-                       url : contextPath + "/GetClass",
-                       success : function(classBin) {
-                           if (!newdoppio) classBin = $.base64.decode(classBin);
-                           var name = clas.replace(/\./g,"/");
-                           //clas.split(".").pop();
-                            if (newdoppio)
-                            {
+                        data: { classfile: clas },
+                        type: "POST",
+                        url: contextPath + "/GetClass",
+                        success: function (classBin) {
+                            if (!newdoppio)
+                                classBin = $.base64.decode(classBin);
+                            var name = clas.replace(/\./g, "/");
+                            //clas.split(".").pop();
+                            if (newdoppio) {
                                 // create directories if they don't already exist...
                                 var dirs = name.split(/\//g);
                                 name = dirs.pop(); // remove last non-dir
                                 var path = "";
-                                for (var i = 0; i < dirs.length; i++)
-                                {
-                                    try { outputframe.fs.mkdirSync("/tmp/"+path+dirs[i]); } catch (e) {};
-                                    path = path+dirs[i]+"/";
+                                for (var i = 0; i < dirs.length; i++) {
+                                    try {
+                                        outputframe.fs.mkdirSync(
+                                            "/tmp/" + path + dirs[i]
+                                        );
+                                    } catch (e) {}
+                                    path = path + dirs[i] + "/";
                                 }
 
-                                writeBase64(classBin,"/tmp/"+path,name+".class");
-                            }
-                            else
-                            {
-                                outputframe.node.fs.writeFileSync(name+".class", classBin,true);
+                                writeBase64(
+                                    classBin,
+                                    "/tmp/" + path,
+                                    name + ".class"
+                                );
+                            } else {
+                                outputframe.node.fs.writeFileSync(
+                                    name + ".class",
+                                    classBin,
+                                    true
+                                );
                             }
                             filesBack++;
-                            if (noOfFiles == filesBack && actuallyRun)
-                            {
+                            if (noOfFiles == filesBack && actuallyRun) {
                                 status("");
-				try
-				{
-                                   if (newdoppio)
-                                   {
-                                       // check to see if we have /tmp/doppio/Graphics.class
-                                       if (!outputframe.fs.existsSync("/tmp/com/nooblab/Graphics.class"))
-                                       {
-                                           $.post(contextPath + "/GetClass",{
-                                               "internal" : "true",
-                                               "classfile" : "com.nooblab.Graphics"
-                                           },
-                                           function(classBin){
-                                               outputframe.runShellCommand("mkdir /tmp/com");
-                                               outputframe.runShellCommand("mkdir /tmp/com/nooblab");
-                                               writeBase64(classBin,"/tmp/","Graphics.class");
-                                               // not sure why I can't put it straight into the dir... but hey...
-                                               outputframe.runShellCommand("mv /tmp/Graphics.class /tmp/com/nooblab/Graphics.class");
-                                               finalPhaseRunJava();
-                                           });
-                                       }
-                                       else
-                                       {
-                                           finalPhaseRunJava();
-                                       }
+                                try {
+                                    if (newdoppio) {
+                                        // check to see if we have /tmp/doppio/Graphics.class
+                                        if (
+                                            !outputframe.fs.existsSync(
+                                                "/tmp/com/nooblab/Graphics.class"
+                                            )
+                                        ) {
+                                            $.post(
+                                                contextPath + "/GetClass",
+                                                {
+                                                    internal: "true",
+                                                    classfile:
+                                                        "com.nooblab.Graphics",
+                                                },
+                                                function (classBin) {
+                                                    outputframe.runShellCommand(
+                                                        "mkdir /tmp/com"
+                                                    );
+                                                    outputframe.runShellCommand(
+                                                        "mkdir /tmp/com/nooblab"
+                                                    );
+                                                    writeBase64(
+                                                        classBin,
+                                                        "/tmp/",
+                                                        "Graphics.class"
+                                                    );
+                                                    // not sure why I can't put it straight into the dir... but hey...
+                                                    outputframe.runShellCommand(
+                                                        "mv /tmp/Graphics.class /tmp/com/nooblab/Graphics.class"
+                                                    );
+                                                    finalPhaseRunJava();
+                                                }
+                                            );
+                                        } else {
+                                            finalPhaseRunJava();
+                                        }
 
-                                       function finalPhaseRunJava()
-                                       {
-                                            outputframe.runShellCommand("cd /tmp");
-                                            outputframe.runShellCommand("java "+main,function(){
-                                                outputframe.globalTerm.writeln("");
-                                                javaSuccessfulRun();
-                                            });
-                                       }
-                                   }
-                                   else
-                                   {
-                                       // Latest codemirror cocks up focus
-                                       setTimeout(function()
-                                       {
-                                          outputframe.focus();
-                                          $("div#console pre",outputframe.document).click();
-                                       },500);
-                                       outputframe.doCommand("java "+main);
-                                   }
-				}
-				catch (e)
-				{
-				   status("Untrapped Doppio Error! :-( - usually this happens if you have a null pointer somewhere. The full error is in the browser console.","error");
-				}
+                                        function finalPhaseRunJava() {
+                                            outputframe.runShellCommand(
+                                                "cd /tmp"
+                                            );
+                                            outputframe.runShellCommand(
+                                                "java " + main,
+                                                function () {
+                                                    outputframe.globalTerm.writeln(
+                                                        ""
+                                                    );
+                                                    javaSuccessfulRun();
+                                                }
+                                            );
+                                        }
+                                    } else {
+                                        // Latest codemirror cocks up focus
+                                        setTimeout(function () {
+                                            outputframe.focus();
+                                            $(
+                                                "div#console pre",
+                                                outputframe.document
+                                            ).click();
+                                        }, 500);
+                                        outputframe.doCommand("java " + main);
+                                    }
+                                } catch (e) {
+                                    status(
+                                        "Untrapped Doppio Error! :-( - usually this happens if you have a null pointer somewhere. The full error is in the browser console.",
+                                        "error"
+                                    );
+                                }
                             }
-                       }
+                        },
                     });
-
                 });
             }
-
-        }
+        },
     });
 }
 
-function hasMain(code)
-{
+function hasMain(code) {
     // is there a main in the currently selected class?
     if (code.match(/static\s*void\s*main\s*\(\s*String/)) return true;
     // otherwise
     return false;
 }
 
-function getClassName(code)
-{
-    try
-    {
-        return code.match(/(class|interface)\s*[a-z|A-Z|0-9]*/)[0].split(/\s/).pop();
+function getClassName(code) {
+    try {
+        return code
+            .match(/(class|interface)\s*[a-z|A-Z|0-9]*/)[0]
+            .split(/\s/)
+            .pop();
+    } catch (e) {
+        return undefined;
     }
-    catch (e) { return undefined; }
 }
 
-function getPackageName(code)
-{
-    try
-    {
-        return code.match(/package\s*[a-z|A-Z|\.]*/)[0].split(/\s/).pop();
+function getPackageName(code) {
+    try {
+        return code
+            .match(/package\s*[a-z|A-Z|\.]*/)[0]
+            .split(/\s/)
+            .pop();
+    } catch (e) {
+        return undefined;
     }
-    catch (e) { return undefined; }
 }
 
-function standardJavaSuccessfulRun()
-{
-    if (newdoppio)
-    {
+function standardJavaSuccessfulRun() {
+    if (newdoppio) {
         var consoletext = getConsoleText();
-        if (consoletext.indexOf("Exception in thread") != -1)
-        {
-            var errorText = consoletext.match(/(Exception in thread [\s\S]*)/g)[0];
+        if (consoletext.indexOf("Exception in thread") != -1) {
+            var errorText = consoletext.match(
+                /(Exception in thread [\s\S]*)/g
+            )[0];
             standardJavaRuntimeError(errorText);
             return;
         }
     }
 
-    if (javaruntimeerror)
-    {
+    if (javaruntimeerror) {
         javaruntimeerror = false;
         return;
     } // otherwise
-    if (newdoppio && lastExitStatus != 0)
-    {
+    if (newdoppio && lastExitStatus != 0) {
         lastExitStatus = 0;
-        status("User aborted execution with the 'stop' button.","error");
+        status("User aborted execution with the 'stop' button.", "error");
         LOGbreak();
-    }
-    else
-    {
+    } else {
         LOGrunSuccess();
-        status("Execution completed.","success");
+        status("Execution completed.", "success");
     }
     enableRun();
 }
 
-function standardJavaRuntimeError(errorText)
-{
-    if (errorText.indexOf("BREAKBREAKBREAK") != -1)
-    {
+function standardJavaRuntimeError(errorText) {
+    if (errorText.indexOf("BREAKBREAKBREAK") != -1) {
         errorText = "User aborted execution with the 'stop' button.";
         LOGbreak();
-    }
-    else
-    {  /*
+    } else {
+        /*
         errorText = errorText
                         .replace(/\t/g,"  ")
                         .replace("at Pigin.main(Pigin.java","(while running your NoobLab code")
                         .replace("from DynamicJavaSourceCodeObject",""); */
-        try
-        {
-            var junk = (newdoppio) ? errorText.split(/\n/) : errorText.split(/\t/);
-            var junk2 = junk[1].replace("at ","").split("(");
+        try {
+            var junk = newdoppio
+                ? errorText.split(/\n/)
+                : errorText.split(/\t/);
+            var junk2 = junk[1].replace("at ", "").split("(");
             var className = junk2[0].split(".")[0].trim();
             var methodName = junk2[0].split(".")[1].split("(")[0].trim();
-            var lineNumber = junk2[1].split(":")[1].replace(")","").trim();
-            var errorBlurb = junk[0].trim().replace(":","").split('"')[2].trim();
+            var lineNumber = junk2[1].split(":")[1].replace(")", "").trim();
+            var errorBlurb = junk[0]
+                .trim()
+                .replace(":", "")
+                .split('"')[2]
+                .trim();
 
-            if ($("div.parameter#multi").text().trim() != "true")  //(className == "Pigin")
-            {
-                if (className == "java" && errorBlurb.indexOf("java.util.NoSuchElementException") != -1 && errorBlurb.indexOf("bad input") != -1)
-                {
+            if ($("div.parameter#multi").text().trim() != "true") {
+                //(className == "Pigin")
+                if (
+                    className == "java" &&
+                    errorBlurb.indexOf("java.util.NoSuchElementException") !=
+                        -1 &&
+                    errorBlurb.indexOf("bad input") != -1
+                ) {
                     // someone's probably typed text into a nextInt scanner...
                     lineNumber = errorBlurb.split("line")[1].trim();
-                    errorBlurb = "Bad input (did you enter text into Scanner.nextInt, perhaps?)";
+                    errorBlurb =
+                        "Bad input (did you enter text into Scanner.nextInt, perhaps?)";
                 }
-                errorText = "Runtime error on line "+lineNumber+"<br/>";
-            }
-            else
-            {
-                errorText = "Runtime error on line "+lineNumber+", in class "+className+", in method "+methodName+"<br/>";
+                errorText = "Runtime error on line " + lineNumber + "<br/>";
+            } else {
+                errorText =
+                    "Runtime error on line " +
+                    lineNumber +
+                    ", in class " +
+                    className +
+                    ", in method " +
+                    methodName +
+                    "<br/>";
             }
             errorText += errorBlurb;
 
-            if (className+".java" != $("div.tab.selected").text().trim())
-            {
+            if (className + ".java" != $("div.tab.selected").text().trim()) {
                 // switch to the right tab for the error
-                $("div.tab").not(".newtab").contents()
-                    .filter(function() {
-                      return this.nodeType === 3 && $(this).text() == className+".java"; //Node.TEXT_NODE
-                }).parent().click();
+                $("div.tab")
+                    .not(".newtab")
+                    .contents()
+                    .filter(function () {
+                        return (
+                            this.nodeType === 3 &&
+                            $(this).text() == className + ".java"
+                        ); //Node.TEXT_NODE
+                    })
+                    .parent()
+                    .click();
                 // frell me, JQuery is bloody awesome
             }
 
             editor.focus();
-            editor.setCursor(parseInt(lineNumber)-1);
-            editor.addLineClass(parseInt(lineNumber)-1,"background","error");
-        }
-        catch (e) {
+            editor.setCursor(parseInt(lineNumber) - 1);
+            editor.addLineClass(
+                parseInt(lineNumber) - 1,
+                "background",
+                "error"
+            );
+        } catch (e) {
             (console.error || console.log).call(console, e.stack || e);
-        };
+        }
 
         //editor.setLineClass(parseInt(lineNumber)-1,"error");
         enableRun();
 
         LOGerror(errorText);
     }
-    status("<pre>"+errorText+"</pre>","error");
+    status("<pre>" + errorText + "</pre>", "error");
     enableRun();
     javaruntimeerror = false;
 }
 
-function status(msg,type)
-{
-    msg = msg.replace("in class Pigin","in program");
+function status(msg, type) {
+    msg = msg.replace("in class Pigin", "in program");
     if (type == undefined) type = "success";
-    if (!newdoppio)
-    {
-        $("div#console",outputframe.document).find("div.status").remove();
+    if (!newdoppio) {
+        $("div#console", outputframe.document).find("div.status").remove();
         if (status == "") return;
-        $("div#console",outputframe.document).append('<div class="status '+type+'">'+
-                                                    msg+"</div>");
-        $("div#main",outputframe.document).scrollTop($("div#main",outputframe.document)[0].scrollHeight);
-    }
-    else
-    {
+        $("div#console", outputframe.document).append(
+            '<div class="status ' + type + '">' + msg + "</div>"
+        );
+        $("div#main", outputframe.document).scrollTop(
+            $("div#main", outputframe.document)[0].scrollHeight
+        );
+    } else {
         if (type.indexOf("wipe") != -1) $("div#output-main div.status").empty();
-        if (type.indexOf("border") != -1)
-        {
+        if (type.indexOf("border") != -1) {
             // we can't actually do a writeln to the term, as we have a border and
             // quite possibly a medal/imagery going on too.
             // So, we'll just overlay a status div into div#output-main
-            if ($("div#output-main div.status").length == 0)
-            {
+            if ($("div#output-main div.status").length == 0) {
                 var statusdiv = $('<div class="status"></div>');
                 statusdiv.css({
-                    "border":"2px solid black",
-                    "position" : "absolute",
-                    "top" : "5px",
-                    "left" : "5px",
-                    "right" : "5px",
-                    "padding" : "10px",
-                    "background-color" : "white",
-                    "font-weight" : "bold"
+                    border: "2px solid black",
+                    position: "absolute",
+                    top: "5px",
+                    left: "5px",
+                    right: "5px",
+                    padding: "10px",
+                    "background-color": "white",
+                    "font-weight": "bold",
                 });
                 $("div#output-main").append(statusdiv);
             }
-            var newmsg = $("<div>"+msg+"</div>");
-            if (type.indexOf("error") != -1)
-            {
-              newmsg.css("color","red");
-            }
-            else
-            {
-              newmsg.css("color","green");
+            var newmsg = $("<div>" + msg + "</div>");
+            if (type.indexOf("error") != -1) {
+                newmsg.css("color", "red");
+            } else {
+                newmsg.css("color", "green");
             }
             if (type.indexOf("test") != -1) newmsg.addClass("test");
             $("div#output-main div.status").append(newmsg);
@@ -1073,579 +1197,1202 @@ function status(msg,type)
 
         msg = msg.split(/<br.>/);
         var newmsg = "";
-        $.each(msg,function(i,one){
-           one = one.replace(/\s*$/,"");
-           newmsg += one+"\r\n";
+        $.each(msg, function (i, one) {
+            one = one.replace(/\s*$/, "");
+            newmsg += one + "\r\n";
         });
         newmsg = newmsg.trim();
-        newmsg = newmsg.replace(/(<([^>]+)>)/ig,"");
+        newmsg = newmsg.replace(/(<([^>]+)>)/gi, "");
 
-        if (newmsg.indexOf("Pigin") != -1)
-        {
+        if (newmsg.indexOf("Pigin") != -1) {
             // clean up errors on first line...
-            newmsg = newmsg.replace('import java.util.Scanner; public class Pigin { public static void main(String[] args) {doppio.JavaScript.eval("globalTerm.reset()");',"");
-            newmsg = newmsg.replace('                                                                                                                                    ',"");
+            newmsg = newmsg.replace(
+                'import java.util.Scanner; public class Pigin { public static void main(String[] args) {doppio.JavaScript.eval("globalTerm.reset()");',
+                ""
+            );
+            newmsg = newmsg.replace(
+                "                                                                                                                                    ",
+                ""
+            );
+        } else {
+            newmsg = newmsg.replace(
+                '{doppio.JavaScript.eval("globalTerm.reset()");',
+                ""
+            );
+            newmsg = newmsg.replace(
+                "                                              ",
+                ""
+            );
         }
-        else
-        {
-            newmsg = newmsg.replace('{doppio.JavaScript.eval("globalTerm.reset()");',"");
-            newmsg = newmsg.replace('                                              ',"");
-        }
-        if (type == "success")
-        {
-            outputframe.globalTerm.writeln("\033[1;3;32m"+newmsg+"\033[0m");
-        }
-        else
-        {
-            outputframe.globalTerm.writeln("\033[1;3;31m"+newmsg+"\033[0m");
+        if (type == "success") {
+            outputframe.globalTerm.writeln("\033[1;3;32m" + newmsg + "\033[0m");
+        } else {
+            outputframe.globalTerm.writeln("\033[1;3;31m" + newmsg + "\033[0m");
         }
     }
 }
 
 var lasttestlink = 0;
-function handleTestCasesJava()
-{
-    var testHarness =
-'import java.io.ByteArrayOutputStream;\n'+
-'import java.io.ByteArrayInputStream;\n'+
-'import java.io.PrintStream;\n'+
-'import java.io.InputStream;\n'+
-'import java.io.IOException;\n'+
-'import java.lang.reflect.*;\n'+
 
-'public class NoobLabTester\n'+
-'{\n'+
-'	static ByteArrayOutputStream baos = new ByteArrayOutputStream();\n'+
-'	public static PrintStream oldSysOut = System.out;\n'+
-'	public static InputStream oldSysIn = System.in;\n'+
-'\n'+
-'	public static void main(String[] args) throws IOException\n'+
-'	{\n'+
-'		int noOfTests = NUMBER_OF_TESTS;\n'+
-'		int testsPassed = 0;\n'+
-'               CODEINCLUDESOFFSET\n'+
-'		/* Hook System.out */				\n'+
-'		PrintStream ps = new PrintStream(baos);\n'+
-'		System.setOut(ps);\n'+
-'		/* test runs here */\n'+
-                'NOOBLABTESTRUNSHERE\n'+
-'		\n'+
-'		/* restore System.out */\n'+
-'		System.out.flush();\n'+
-'		System.setOut(oldSysOut);\n'+
-'		\n'
-
-if (!newdoppio)
-{
-    testHarness +=
-'		System.out.println("NOOBLABTESTSTART:"+testsPassed+"/"+noOfTests+":NOOBLABTESTEND");		\n'
-}
-else
-{
-    testHarness +=
-'               doppio.JavaScript.eval("parent.javaTestData = \'"+testsPassed+"/"+noOfTests+"\'");    \n'
-}
-testHarness +=
-'               MEDALHERE\n'+
-'	}\n'+
-'	\n'+
-'	public static String consoleOutput()\n'+
-'	{\n'+
-'		return baos.toString();\n'+
-'	}\n'+
-'       public static String[] consoleOutputAsLines()\n'+
-'	{\n'+
-
-'		return consoleOutput().split("\\r\\n?|\\n");\n'+
-'	}\n'+
-'       public static void feedback(String f)\n'+
-'       {\n';
-if (!newdoppio)
-{
-    testHarness +=
-'               oldSysOut.println("FailTip:"+f);\n'
-}
-else
-{
-    testHarness +=
-'               doppio.JavaScript.eval("parent.javaFailTips.push(\'"+f.replace("\'","\\\\\'")+"\')");\n'
-'               oldSysOut.println("FailTip:"+f);\n'
-}
-testHarness +=
-'       }\n'+
-'	\n'+
-'NOOBLABTESTSGOHERE\n'+
-'}';
-
-        var singleTestMethod = 'public static boolean testNOOBLABTESTNUMBERHERE() throws IOException'+
-'	{';
-if (!newdoppio) singleTestMethod +=
-'		oldSysOut.println(\"TESTCOUNT\");\n';
-else
-'               doppio.JavaScript.eval("parent.javaTestCount++");';
-singleTestMethod +=
-'               String inputValues = "NOOBINPUTVALUES";\n'+
-'               ByteArrayInputStream bais = new ByteArrayInputStream(inputValues.trim().getBytes());\n'+
-'		/* Hook System.in */				\n'+
-'		System.setIn(bais);\n'+
-'		\n'+
-'		NOOBLABCALLDEFAULTMAINHERE'+
-'		NOOBLABSINGLETESTCODEHERE'+
-'		/* and restore in */\n'+
-'               bais.close();\n'+
-'		System.setIn(oldSysIn);\n'+
-'		return false;'+
-'	}';
-
-        var singleTestRunLine = 'if (testNOOBLABTESTNUMBERHERE()) testsPassed++;';
-
-    $(".testCase").each(function(){
-
-        var codeIncludes = $(this).find(".codeIncludes");
-
-        var id = $(this)[0].id;
-        if ($(this).find("div.id").length != 0)
-        {
-            id = $(this).find("div.id").text().trim();
-        }
-        if (id == undefined) id = "";
-
-         // get medal details, if any
-        var medal = undefined;
-        if ($(this).find("div.medalType").length != 0)
-        {
-            medal = $(this).find("div.medalType").text().trim();
-            if ($(this).find("div.medalDesc").length != 0)
-            {
-                medal += ":"+$(this).find("div.medalDesc").text().trim()+":"+id;
+var JavaTestManager_Deprecated = {
+    init: function () {
+        $(".testCase").each(function () {
+            var id = $(this)[0].id;
+            if ($(this).find("div.id").length != 0) {
+                id = $(this).find("div.id").text().trim();
             }
-            else
-            {
-                medal += ":"+id;
+            if (id == undefined) id = "";
+
+            var medal = undefined;
+            if ($(this).find("div.medalType").length != 0) {
+                medal = $(this).find("div.medalType").text().trim();
+                if ($(this).find("div.medalDesc").length != 0) {
+                    medal +=
+                        ":" +
+                        $(this).find("div.medalDesc").text().trim() +
+                        ":" +
+                        id;
+                } else {
+                    medal += ":" + id;
+                }
             }
-        }
-        if (medal != undefined) $(this).attr("data-medal",medal);
-        $(this).attr("data-id",id);
+            if (medal != undefined) $(this).attr("data-medal", medal);
+            $(this).attr("data-id", id);
 
-        var test = testHarness;
-        test = test.replace("NUMBER_OF_TESTS",$(this).find(".test").length);
-        var testRuns = "";
-        var testMethods = "";
-
-        if (medal)
-        {
-            if (!newdoppio)
-            {
-                test = test.replace("MEDALHERE",'if (testsPassed == noOfTests) System.out.println("NOOBLABMEDALSTART:'+medal+':NOOBLABMEDALEND"); ');
+            var linkText = ">>> Click here to test your code <<<";
+            if (medal != undefined) {
+                linkText = linkText.replace(
+                    "code",
+                    "code for a " + medal.split(":")[0] + " medal"
+                );
+                linkText = linkText.replace("ribbon medal", "ribbon");
             }
-            else
-            {
-                test = test.replace("MEDALHERE",'if (testsPassed == noOfTests) doppio.JavaScript.eval("parent.javaTestMedal=\''+medal.replace(/'/g,"\\'")+'\'");');
-            }
-        }
-        else
-        {
-            test = test.replace("MEDALHERE","");
-        }
 
-        // build test code
-        $(this).find(".test").each(function(i,individualTest){
-            var inputValues = "";
+            $(this).text(linkText);
 
-            var testCode = ($(individualTest).hasClass("code")) ?
-                    $(individualTest).text().trim() : $(individualTest).find(".code").text().trim();
+            // Add override/hide buttons
+            $(this).append(
+                '<span class="override"><br/><input type="password"/><button>Override</button><button>Hide</button></div>'
+            );
 
-            testCode = js_beautify(testCode);
+            $(this)
+                .find("input")
+                .click(function (e) {
+                    e.stopPropagation();
+                });
 
-	    var testRun = singleTestRunLine.replace("NOOBLABTESTNUMBERHERE",i);
+            $(this)
+                .find("button")
+                .eq(0)
+                .click(function (e) {
+                    e.stopPropagation();
+                    var inp = $(this).parent().find("input").val();
+                    $.get(
+                        contextPath + "/OverrideCheck?pw=" + inp,
+                        function (res) {
+                            if (res == "good") {
+                                LOGtestStart(id, "", true, medal);
+                                JavaTestManager.onSuccess("1/1", medal);
+                            }
+                        }
+                    );
+                });
 
-            var testMethod = singleTestMethod.replace("NOOBLABSINGLETESTCODEHERE",testCode).replace("NOOBLABTESTNUMBERHERE",i);
+            $(this)
+                .find("button")
+                .eq(1)
+                .click(function (e) {
+                    e.stopPropagation();
+                    $(this).parent().find("button,br,input").hide();
+                })
+                .click(); // Hide by default
 
-            if (!$(individualTest).hasClass("runmain") && $("div.parameter#multi").text().trim() == "true") testMethod = testMethod.replace("NOOBLABCALLDEFAULTMAINHERE","");
-
-            $(individualTest).find(".inputTest").each(function(i,inputValue){
-                inputValues += $(inputValue).text().trim()+"\\n";
+            $(this).css({
+                border: "1px solid black",
+                background: "white",
+                cursor: "pointer",
+                padding: "5px",
+                fontWeight: "bold",
+                textAlign: "center",
             });
 
-            testMethod = testMethod.replace("NOOBINPUTVALUES",inputValues+"\\nrandom\\nrandom\\nrandom\\nrandom");
-
-            testRuns += testRun;
-            testMethods += testMethod;
-        });
-
-
-
-        test = test.replace("NOOBLABTESTRUNSHERE",testRuns);
-        test = test.replace("NOOBLABTESTSGOHERE",testMethods);
-
-        var linkText = ">>> Click here to test your code <<<"
-        if (medal != undefined)
-        {
-            linkText = linkText.replace("code","code for a "+medal.split(":")[0]+" medal");
-            linkText = linkText.replace("ribbon medal","ribbon");
-        }
-
-        $(this).text(linkText);
-        $(this).append('<span class="override"><br/><input type="password"/><button>Override</button><button>Hide</button></div>');
-        //$(this).append('<br/><input type="password"/><button>Override</button><button>Hide</button>');
-        $(this).find("input").click(function(e){
-           e.stopPropagation();
-        });
-        $(this).find("button").eq(0).click(function(e){
-            e.stopPropagation();
-           //var _0xfae9=["\x6D\x65\x65\x70\x34\x30\x37"]; var pw=_0xfae9[0];
-            var inp = $(this).parent().find("input").val();
-            $.get(contextPath+"/OverrideCheck?pw="+inp,function(res){
-                if (res == "good")
-                {
-                    LOGtestStart(id,"",true,medal);
-                    javaSuccessfulTest("1/1", medal);
+            $(this).click(function (e) {
+                // Handle hidden override option
+                if (e.shiftKey) {
+                    $(this).find("button,br,input").show();
+                    return;
                 }
+
+                JavaTestManager.run(this);
             });
         });
-        $(this).find("button").eq(1).click(function(e){
-            e.stopPropagation();
-            $(this).parent().find("button,br,input").hide();
-        }).click();
+    },
 
-        $(this).css({
-            border : "1px solid black",
-            background : "white",
-            cursor : "hand",
-            cursor : "pointer",
-            padding : "5px",
-            fontWeight : "bold",
-            textAlign : "center"
-        });
-        $(this).click(function(e){
+    parseTest: function (element) {
+        var el = $(element);
+        var testData = {
+            id: el.attr("data-id"),
+            medal: el.attr("data-medal"),
+            tests: [],
+            codeIncludes: [],
+        };
 
-            lasttestlink = this;
-
-            var attempts = $(lasttestlink).attr("data-fails");
-            if (isNaN(attempts)) attempts = 0;
-            attempts++;
-            $(lasttestlink).attr("data-fails",attempts);
-
-            // remove any emotional stuff
-            $(this).find("div.emotionselection").remove();
-
-            // hidden override option
-            if (e.shiftKey)
-            {
-                $(this).find("button,br,input").show();
-                return;
-            }
-
-	    if (numTestMon)
-            {
-                clearInterval(numTestMon);
-                numTestMon = undefined;
-            }
-
-            var testCode = test;
-            var numTests = parseInt(testCode.match(/int noOfTests = (.*);/)[1]);
-            var codeFiles = getTabBundleCode(true)[0];
-
-	    var code = editor.getValue();
-
-            // do code includes
-            var offset = "";
-           codeIncludes.each(function()
-            {
-                var allcode = getTabBundleCode(false);
-		var feedback = $(this).attr("data-feedback");
-                numTests++;
-                var mustInclude = $(this).text().trim();
-                var notEqual = "false";
-                if (mustInclude.charAt(0) == "!")
-                {
-                    mustInclude = mustInclude.substring(1);
-                    notEqual = "true";
-                }
-                else if (mustInclude.charAt(0) == "#")
-                {
-                   mustInclude = mustInclude.substring(1);
-                   notEqual = "regex";
-                }
-                if (notEqual == "true")
-                {
-                    if (allcode.indexOf(mustInclude) == -1)
-                    {
-                        offset += "noOfTests++; testsPassed++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-                    }
-                    else
-                    {
-                        offset += "noOfTests++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-			if (feedback) offset += 'feedback("'+feedback+'");';
-                    }
-                }
-                else if (notEqual == "false")
-                {
-                    if (allcode.indexOf(mustInclude) != -1)
-                    {
-                        offset += "noOfTests++; testsPassed++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-                    }
-                    else
-                    {
-                        offset += "noOfTests++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-                    	if (feedback) offset += 'feedback("'+feedback+'");';
-		    }
-                }
-                else if (notEqual == "regex")
-                {
-                    var mustInclude = new RegExp(mustInclude);
-                    if (allcode.search(mustInclude) != -1)
-                    {
-                        offset += "noOfTests++; testsPassed++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-                    }
-                    else
-                    {
-                        offset += "noOfTests++;";
-                        if (!newdoppio) offset += "oldSysOut.println(\"TESTCOUNT\");";
-                        if (newdoppio) offset += 'doppio.JavaScript.eval("parent.javaTestCount++");';
-                    	if (feedback) offset += 'feedback("'+feedback+'");';
-		    }
-                }
-            });
-
-            if (!newdoppio)
-            {
-                status("Testing... test number 0 of "+numTests,"border test wipe");
-                numTestMon = setInterval(function(){
-                     try
-                     {
-                         var doneNum = (newdoppio) ? javaTestCount : getConsoleText().trim().match(/TESTCOUNT/g).length;
-                         status("Testing... test number "+doneNum+" of "+numTests,"border test wipe");
-                     } catch (e) {}
-                },500);
+        // Parse individual tests
+        el.find(".test").each(function () {
+            var testObj = {
+                code: $(this).hasClass("code")
+                    ? $(this).text().trim()
+                    : $(this).find(".code").text().trim(),
+                inputs: [],
+                runMain: $(this).hasClass("runmain"),
             };
 
-            testCode = testCode.replace("CODEINCLUDESOFFSET",offset);
+            $(this)
+                .find(".inputTest")
+                .each(function () {
+                    testObj.inputs.push($(this).text().trim());
+                });
 
-            if ($("div.parameter#multi").text().trim() != "true")
-            {
-                if (!code.match(/\s*class\s*/) && !code.match(/\s*void\s*main/))
-                {
-                    // pigin Java :-) Wrap a class/main around it
-                    code = "import java.util.Scanner; public class Pigin { public static void main(String[] args) { "+code+"\n} }";
-                    codeFiles[0] = code;
-                }
-            }
-            //var classname = getClassName(code);
-            //var packig = getPackageName(code);
-	    var mainsPkgs = getMainsPkgs(codeFiles);
-            if (mainsPkgs.length == 0)
-            {
-                apprise("This code can't run. There doesn't appear to be a main method.");
-                return;
-            }
-            if (mainsPkgs.length != 1)
-            {
-                apprise("This code can't be tested. It appears as if there's more than one main method.");
-                return;
-            }
-            var classname = getMainsPkgs(codeFiles)[0][0];
-            var packig = getMainsPkgs(codeFiles)[0][1];
-            if (packig) classname = packig+"."+classname;
-            testCode = testCode.replace(/NOOBLABCALLDEFAULTMAINHERE/g,classname+".main(new String[5]);  ");
-            codeFiles.push(testCode);
-	    var testCodeAsLines = testCode.split("\n");
-	    var fnar = "";
-            try
-		{
-		 for (var lns = 0; lns < testCodeAsLines.length; lns++)
-		 {
-    		   fnar += (lns+1+": "+testCodeAsLines[lns])+"\n";
-		 }
-		} catch (e) {};
-		console.log(fnar);
-	    // try { console.log(testCode); } catch (e) {}
-	    javaSuccessfulRun = javaSuccessfulTest; //standardJavaSuccessfulRun;
-            javaRuntimeError = javaRuntimeDuringTest; //standardJavaRuntimeError;
-            // hide the console
-            LOGtestStart(id,getTabBundleCode(),undefined,medal);
-            if (!newdoppio)
-            {
-                outputframe.controller.reset();
-            }
-            else
-            {
-                outputframe.globalTerm.reset();
-                outputframe.globalTerm.focus();
-            }
-            if (!$(this).hasClass("nohide"))
-            {
-                if (!newdoppio)
-                {
-                    $("div#console pre",outputframe.document).hide();
-                }
-                else
-                {
-                    $("div#output-main div.status").remove();
-                    status("Testing...","border test");
-                }
-            }
-            actuallyDoRunJava(codeFiles,["NoobLabTester",undefined],true);
+            testData.tests.push(testObj);
         });
-    });
-}
 
-// successful run cycle, rather than test itself being successful
-function javaSuccessfulTest(mark,medal)
-{
-    clearInterval(numTestMon);
-    numTestMon = undefined;
+        // Parse code includes
+        el.find(".codeIncludes").each(function () {
+            testData.codeIncludes.push({
+                text: $(this).text().trim(),
+                feedback: $(this).attr("data-feedback"),
+            });
+        });
 
-    enableRun();
+        return testData;
+    },
 
-    if (newdoppio)
-    {
-        $("div#output-main div.status div.test").remove();
-        var consoletext = getConsoleText();
-        if (consoletext.indexOf("Exception in thread") != -1)
-        {
-            var errorText = consoletext.match(/(Exception in thread [\s\S]*)/g)[0];
-            $("div#output-main div.status").remove();
-            standardJavaRuntimeError(errorText);
+    generateHarness: function (testData, classname) {
+        var harness =
+            "import java.io.ByteArrayOutputStream;\\n" +
+            "import java.io.ByteArrayInputStream;\\n" +
+            "import java.io.PrintStream;\\n" +
+            "import java.io.InputStream;\\n" +
+            "import java.io.IOException;\\n" +
+            "import java.lang.reflect.*;\\n" +
+            "public class NoobLabTester {\\n" +
+            "    static ByteArrayOutputStream baos = new ByteArrayOutputStream();\\n" +
+            "    public static PrintStream oldSysOut = System.out;\\n" +
+            "    public static InputStream oldSysIn = System.in;\\n" +
+            "    public static void main(String[] args) throws IOException {\\n" +
+            "        int noOfTests = " +
+            testData.tests.length +
+            ";\\n" +
+            "        int testsPassed = 0;\\n";
+
+        // Code includes logic
+        var userCode = getTabBundleCode(false); // Get all code for checking includes
+        var offset = "";
+
+        var extraTests = 0;
+
+        testData.codeIncludes.forEach(function (inc) {
+            extraTests++;
+            var mustInclude = inc.text;
+            var notEqual = "false";
+            if (mustInclude.charAt(0) == "!") {
+                mustInclude = mustInclude.substring(1);
+                notEqual = "true";
+            } else if (mustInclude.charAt(0) == "#") {
+                mustInclude = mustInclude.substring(1);
+                notEqual = "regex";
+            }
+
+            var passed = false;
+            if (notEqual == "true") {
+                if (userCode.indexOf(mustInclude) == -1) passed = true;
+            } else if (notEqual == "false") {
+                if (userCode.indexOf(mustInclude) != -1) passed = true;
+            } else if (notEqual == "regex") {
+                if (userCode.search(new RegExp(mustInclude)) != -1)
+                    passed = true;
+            }
+
+            if (passed) {
+                offset += "testsPassed++; ";
+                if (!newdoppio) offset += 'oldSysOut.println("TESTCOUNT"); ';
+                else
+                    offset +=
+                        'doppio.JavaScript.eval("parent.javaTestCount++"); ';
+            } else {
+                if (!newdoppio) offset += 'oldSysOut.println("TESTCOUNT"); ';
+                else
+                    offset +=
+                        'doppio.JavaScript.eval("parent.javaTestCount++"); ';
+                if (inc.feedback) {
+                    if (!newdoppio)
+                        offset +=
+                            'oldSysOut.println("FailTip:' +
+                            inc.feedback.replace(/"/g, '\\\\"') +
+                            '"); ';
+                    else
+                        offset +=
+                            "doppio.JavaScript.eval(\"parent.javaFailTips.push(\\'" +
+                            inc.feedback.replace(/'/g, "\\\\\\'") +
+                            "\\')\"); ";
+                }
+            }
+        });
+
+        harness += "        noOfTests += " + extraTests + ";\\n";
+        harness += "        " + offset + "\\n";
+
+        harness +=
+            "        PrintStream ps = new PrintStream(baos);\\n" +
+            "        System.setOut(ps);\\n";
+
+        // Generate test calls
+        for (var i = 0; i < testData.tests.length; i++) {
+            harness += "        if (test" + i + "()) testsPassed++;\\n";
+        }
+
+        harness +=
+            "        System.out.flush();\\n" +
+            "        System.setOut(oldSysOut);\\n";
+
+        // Result reporting
+        if (!newdoppio) {
+            harness +=
+                '        System.out.println("NOOBLABTESTSTART:"+testsPassed+"/"+noOfTests+":NOOBLABTESTEND");\\n';
+        } else {
+            harness +=
+                '        doppio.JavaScript.eval("parent.javaTestData = \\\'"+testsPassed+"/"+noOfTests+"\\\'");\\n';
+        }
+
+        // Medal reporting
+        if (testData.medal) {
+            if (!newdoppio) {
+                harness +=
+                    '        if (testsPassed == noOfTests) System.out.println("NOOBLABMEDALSTART:' +
+                    testData.medal +
+                    ':NOOBLABMEDALEND");\\n';
+            } else {
+                harness +=
+                    "        if (testsPassed == noOfTests) doppio.JavaScript.eval(\"parent.javaTestMedal=\\'" +
+                    testData.medal.replace(/'/g, "\\\\\\'") +
+                    "\\'\");\\n";
+            }
+        }
+
+        harness += "    }\\n"; // End main
+
+        // Helper methods
+        harness +=
+            "    public static String consoleOutput() { return baos.toString(); }\\n" +
+            '    public static String[] consoleOutputAsLines() { return consoleOutput().split("\\\\\\\\r\\\\\\\\n?|\\\\\\\\n"); }\\n';
+
+        // Generate test methods
+        for (var i = 0; i < testData.tests.length; i++) {
+            var test = testData.tests[i];
+            harness +=
+                "    public static boolean test" +
+                i +
+                "() throws IOException {\\n";
+
+            if (!newdoppio)
+                harness += '        oldSysOut.println("TESTCOUNT");\\n';
+            else
+                harness +=
+                    '        doppio.JavaScript.eval("parent.javaTestCount++");\\n';
+
+            var inputStr =
+                test.inputs.join("\\\\n") +
+                "\\\\nrandom\\\\nrandom\\\\nrandom\\\\nrandom";
+            harness += '        String inputValues = "' + inputStr + '";\\n';
+            harness +=
+                "        ByteArrayInputStream bais = new ByteArrayInputStream(inputValues.trim().getBytes());\\n" +
+                "        System.setIn(bais);\\n";
+
+            var shouldCallMain = true;
+            if (
+                !test.runMain &&
+                $("div.parameter#multi").text().trim() == "true"
+            ) {
+                shouldCallMain = false;
+            }
+
+            if (shouldCallMain) {
+                harness += "        " + classname + ".main(new String[5]);\\n";
+            }
+
+            var testCode = js_beautify(test.code);
+            harness += "        " + testCode + "\\n";
+
+            harness +=
+                "        bais.close();\\n" +
+                "        System.setIn(oldSysIn);\\n" +
+                "        return false;\\n" +
+                "    }\\n";
+        }
+
+        harness += "}\\n";
+        return harness;
+    },
+
+    run: function (element) {
+        var testData = this.parseTest(element);
+
+        // Reset state
+        if (numTestMon) {
+            clearInterval(numTestMon);
+            numTestMon = undefined;
+        }
+        javaTestCount = 0;
+        javaFailTips = [];
+        javaTestData = undefined;
+        javaTestMedal = undefined;
+
+        // Prepare user code
+        var codeFiles = getTabBundleCode(true)[0];
+        var code = editor.getValue();
+
+        // Pigin Java wrapping
+        if ($("div.parameter#multi").text().trim() != "true") {
+            if (!code.match(/\s*class\s*/) && !code.match(/\s*void\s*main/)) {
+                code =
+                    "import java.util.Scanner; public class Pigin { public static void main(String[] args) { " +
+                    code +
+                    "\\n} }";
+                codeFiles[0] = code;
+            }
+        }
+
+        var mainsPkgs = getMainsPkgs(codeFiles);
+        if (mainsPkgs.length == 0) {
+            apprise(
+                "This code can't run. There doesn't appear to be a main method."
+            );
             return;
         }
-    }
-
-    // grab the final marks from the console.
-    if (medal== undefined)
-    {
-        if (newdoppio)
-        {
-            try { medal = javaTestMedal } catch (e) {}; //ugly!
-            javaTestMedal = undefined;
+        if (mainsPkgs.length != 1) {
+            apprise(
+                "This code can't be tested. It appears as if there's more than one main method."
+            );
+            return;
         }
-        else
-        {
-            medal = getConsoleText().replace(/\n/g,"").match(/NOOBLABMEDALSTART:(.*?):NOOBLABMEDALEND/);
-            if (medal) medal = medal[1];
+
+        var classname = mainsPkgs[0][0];
+        var packig = mainsPkgs[0][1];
+        if (packig) classname = packig + "." + classname;
+
+        // Generate harness
+        var harness = this.generateHarness(testData, classname);
+
+        codeFiles.push(harness);
+
+        // Setup callbacks
+        javaSuccessfulRun = this.onSuccess;
+        javaRuntimeError = this.onError;
+
+        // UI Updates
+        LOGtestStart(
+            testData.id,
+            getTabBundleCode(),
+            undefined,
+            testData.medal
+        );
+
+        if (!newdoppio) {
+            if (outputframe.controller) outputframe.controller.reset();
+            $("div#console pre", outputframe.document).hide();
+        } else {
+            outputframe.globalTerm.reset();
+            outputframe.globalTerm.focus();
+            $("div#output-main div.status").remove();
+            status("Testing...", "border test");
         }
-    }
-    if (mark == undefined)
-    {
-        if (newdoppio)
-        {
-            mark = javaTestData;
-            javaTestData = undefined;
+
+        // Start progress monitor
+        if (!newdoppio) {
+            status("Testing... test number 0", "border test wipe");
+            numTestMon = setInterval(function () {
+                try {
+                    var doneNum = getConsoleText()
+                        .trim()
+                        .match(/TESTCOUNT/g).length;
+                    status(
+                        "Testing... test number " + doneNum,
+                        "border test wipe"
+                    );
+                } catch (e) {}
+            }, 500);
+        } else {
+            numTestMon = setInterval(function () {
+                status(
+                    "Testing... test number " + javaTestCount,
+                    "border test wipe"
+                );
+            }, 500);
         }
-        else
-        {
-            mark = getConsoleText().trim().replace(/\n/g,"").match(/NOOBLABTESTSTART:(.*?):NOOBLABTESTEND/);
-            mark = (mark) ? mark = mark[1] : "0/1";
+
+        actuallyDoRunJava(codeFiles, ["NoobLabTester", undefined], true);
+    },
+
+    onSuccess: function (mark, medal) {
+        clearInterval(numTestMon);
+        numTestMon = undefined;
+        enableRun();
+
+        if (newdoppio) {
+            $("div#output-main div.status div.test").remove();
+            var consoletext = getConsoleText();
+            if (consoletext.indexOf("Exception in thread") != -1) {
+                var errorText = consoletext.match(
+                    /(Exception in thread [\s\S]*)/g
+                )[0];
+                $("div#output-main div.status").remove();
+                JavaTestManager.onError(errorText);
+                return;
+            }
         }
-    }
-    mark = mark.split("/");
-    var max = parseInt(mark[1]);
-    mark = parseInt(mark[0]);
 
-    var msg = "";
-
-    var failtips = (newdoppio) ? javaFailTips : getConsoleText().trim().match(/FailTip:(.*)/g);
-    if (failtips)
-    {
-       $.each(failtips,function(){
-          msg+='<p style="margin-top: 0px; color: black;">Feedback: '+this.replace("FailTip:","")+"</p>";
-       });
-    }
-
-    var type = "error border";
-
-    if (mark == max)
-    {
-       msg += "Well done! Your work successfully passed all the tests for this exercise!";
-       type = "success border";
-       LOGtestPassed(medal);
-    }
-    else
-    {
-        msg += "Sorry! Your work "+ /* only passed "+mark+" out of "+max+" tests, and */ "is not a correct solution to the "+
-              "exercise.";
-        LOGtestFailed(mark+"/"+max);
-
-        /*
-        var attempts = $(lasttestlink).attr("data-fails");
-        if (isNaN(attempts)) attempts = 0;
-        attempts++;
-        $(lasttestlink).attr("data-fails",attempts);
-
-        if (attempts == 5)
-        {
-            $(lasttestlink).attr("data-fails","0");
-                howDoYouFeelAbout(lasttestlink,"You've been unsuccessful at this activity five in times in a row now...","repeatedFail");
+        // Parse results
+        if (medal == undefined) {
+            if (newdoppio) {
+                try {
+                    medal = javaTestMedal;
+                } catch (e) {}
+                javaTestMedal = undefined;
+            } else {
+                var m = getConsoleText()
+                    .replace(/\n/g, "")
+                    .match(/NOOBLABMEDALSTART:(.*?):NOOBLABMEDALEND/);
+                if (m) medal = m[1];
+            }
         }
-       */
 
-    }
+        if (mark == undefined) {
+            if (newdoppio) {
+                mark = javaTestData;
+                javaTestData = undefined;
+            } else {
+                var m = getConsoleText()
+                    .trim()
+                    .replace(/\n/g, "")
+                    .match(/NOOBLABTESTSTART:(.*?):NOOBLABTESTEND/);
+                mark = m ? m[1] : "0/1";
+            }
+        }
 
-    if (medal)
-    {
-     var medalData = medal.split(":");
-     var medalName = medalData[1];
-     var medalTypeOnly = medalData[0];
-     var medalType = (medalData[0] == "ribbon") ? medalTypeOnly : medalTypeOnly+" medal";
-     msg += '<p style="text-align: center"><img src="'+contextPath+'/images/medal'+medalTypeOnly+'.png"/></p>Passing this test awards you a '+medalType+' for the "'+medalName+'" challenge!';
-     LOGmedal(medal);
-     howDoYouFeelAbout(lasttestlink,"Well done! Your code was good enough for a medal!",medalType);
-    }
+        if (!mark) mark = "0/1";
+        var parts = mark.split("/");
+        var score = parseInt(parts[0]);
+        var max = parseInt(parts[1]);
 
-    status(msg,type);
+        var msg = "";
+        var failtips = newdoppio
+            ? javaFailTips
+            : getConsoleText()
+                  .trim()
+                  .match(/FailTip:(.*)/g);
 
-}
+        if (failtips) {
+            $.each(failtips, function () {
+                var tip = this.toString().replace("FailTip:", "");
+                msg +=
+                    '<p style="margin-top: 0px; color: black;">Feedback: ' +
+                    tip +
+                    "</p>";
+            });
+        }
 
-function javaRuntimeDuringTest(error)
-{
-    javaruntimeerror = false;
-    enableRun();
-    clearInterval(numTestMon);/*
-    error = error
-                        .replace(/\t/g,"  ")
-                        .replace("at Pigin.main(Pigin.java from DynamicJavaSourceCodeObject","(while running your NoobLab code")
-                        .replace("from DynamicJavaSourceCodeObject",""); */
-    var msg = "Sorry! Your code threw a runtime error during the test (or you pressed 'Stop'). If this is an error, it might be because it has a runtime error somewhere in it,"
-        msg+= " or it might just be doing something entirely unexpected with respect to the exercise at hand. Either way, it is not a correct solution to the exercise.";
-        status (msg,"error border");
-    console.log(error);
-    LOGtestFailed("RuntimeError:"+error,"error border");
-    javaRuntimeError = standardJavaRuntimeError;
-}
+        var type = "error border";
+        if (score == max) {
+            msg +=
+                "Well done! Your work successfully passed all the tests for this exercise!";
+            type = "success border";
+            LOGtestPassed(medal);
+        } else {
+            msg +=
+                "Sorry! Your work is not a correct solution to the exercise.";
+            LOGtestFailed(score + "/" + max);
+        }
 
-function getConsoleText()
-{
-    if (!newdoppio)
-    {
-        return $("div#console",outputframe.document).text().trim();
-    }
-    else
-    {
+        if (medal) {
+            var medalData = medal.split(":");
+            var medalName = medalData[1];
+            var medalType =
+                medalData[0] == "ribbon"
+                    ? medalData[0]
+                    : medalData[0] + " medal";
+            msg +=
+                '<p style="text-align: center"><img src="' +
+                contextPath +
+                "/images/medal" +
+                medalData[0] +
+                '.png"/></p>';
+            msg +=
+                "Passing this test awards you a " +
+                medalType +
+                ' for the "' +
+                medalName +
+                '" challenge!';
+
+            // Find the last clicked test link to get ID
+            // We can store it in JavaTestManager.currentTestId or similar, or just use the global lasttestlink if it's still valid.
+            // The init function sets the click handler but doesn't set lasttestlink.
+            // Let's assume we can pass it or store it.
+            // For now, I'll rely on the fact that the user just clicked it.
+            if (lasttestlink) {
+                var id = $(lasttestlink).attr("data-id");
+                LOGmedal(medal, id);
+                howDoYouFeelAbout(
+                    lasttestlink,
+                    "Well done! Your code was good enough for a medal!",
+                    medalType
+                );
+            }
+        }
+
+        status(msg, type);
+    },
+
+    onError: function (error) {
+        javaruntimeerror = false;
+        enableRun();
+        clearInterval(numTestMon);
+
+        var msg = "Sorry! Your code threw a runtime error during the test.";
+        status(msg, "error border");
+        console.log(error);
+        LOGtestFailed("RuntimeError:" + error, "error border");
+
+        // Reset callback
+        javaRuntimeError = standardJavaRuntimeError;
+    },
+};
+
+function getConsoleText() {
+    if (!newdoppio) {
+        return $("div#console", outputframe.document).text().trim();
+    } else {
         var text = "";
         var rawlines = outputframe.globalTerm.lines;
-        for (var i = 0; i < rawlines.length; i++)
-        {
+        for (var i = 0; i < rawlines.length; i++) {
             var currentraw = rawlines[i];
             var textline = "";
-            for (var x = 0; x < currentraw.length; x++)
-            {
+            for (var x = 0; x < currentraw.length; x++) {
                 textline += currentraw[x][1];
             }
-            textline = textline.replace(/\u00A0/g,' ');
-            textline = textline.replace(/\s*$/,"");
+            textline = textline.replace(/\u00A0/g, " ");
+            textline = textline.replace(/\s*$/, "");
             textline += "\n";
             text += textline;
         }
         return text.trim();
     }
 }
+
+var JavaTestManager = {
+    init: function () {
+        $(".testCase").each(function () {
+            var id = $(this)[0].id;
+            if ($(this).find("div.id").length != 0) {
+                id = $(this).find("div.id").text().trim();
+            }
+            if (id == undefined) id = "";
+
+            var medal = undefined;
+            if ($(this).find("div.medalType").length != 0) {
+                medal = $(this).find("div.medalType").text().trim();
+                if ($(this).find("div.medalDesc").length != 0) {
+                    medal +=
+                        ":" +
+                        $(this).find("div.medalDesc").text().trim() +
+                        ":" +
+                        id;
+                } else {
+                    medal += ":" + id;
+                }
+            }
+            if (medal != undefined) $(this).attr("data-medal", medal);
+            $(this).attr("data-id", id);
+
+            var linkText = ">>> Click here to test your code <<<";
+            if (medal != undefined) {
+                linkText = linkText.replace(
+                    "code",
+                    "code for a " + medal.split(":")[0] + " medal"
+                );
+                linkText = linkText.replace("ribbon medal", "ribbon");
+            }
+
+            var originalContent = $(this).html();
+            $(this).text(linkText);
+            $(this).append(
+                '<div style="display:none;">' + originalContent + "</div>"
+            );
+
+            $(this).append(
+                '<span class="override"><br/><input type="password"/><button>Override</button><button>Hide</button></div>'
+            );
+
+            $(this)
+                .find("input")
+                .click(function (e) {
+                    e.stopPropagation();
+                });
+
+            $(this)
+                .find("button")
+                .eq(0)
+                .click(function (e) {
+                    e.stopPropagation();
+                    var inp = $(this).parent().find("input").val();
+                    $.get(
+                        contextPath + "/OverrideCheck?pw=" + inp,
+                        function (res) {
+                            if (res == "good") {
+                                LOGtestStart(id, "", true, medal);
+                                JavaTestManager.onSuccess("1/1", medal);
+                            }
+                        }
+                    );
+                });
+
+            $(this)
+                .find("button")
+                .eq(1)
+                .click(function (e) {
+                    e.stopPropagation();
+                    $(this).parent().find("button,br,input").hide();
+                })
+                .click();
+
+            $(this).css({
+                border: "1px solid black",
+                background: "white",
+                cursor: "pointer",
+                padding: "5px",
+                fontWeight: "bold",
+                textAlign: "center",
+            });
+
+            $(this).click(function (e) {
+                if (e.shiftKey) {
+                    $(this).find("button,br,input").show();
+                    return;
+                }
+                lasttestlink = this;
+                JavaTestManager.run(this);
+            });
+        });
+    },
+
+    parseTest: function (element) {
+        var el = $(element);
+        var testData = {
+            id: el.attr("data-id"),
+            medal: el.attr("data-medal"),
+            tests: [],
+            codeIncludes: [],
+        };
+
+        el.find(".test").each(function () {
+            var testObj = {
+                code: $(this).hasClass("code")
+                    ? $(this).text().trim()
+                    : $(this).find(".code").text().trim(),
+                inputs: [],
+                runMain: $(this).hasClass("runmain"),
+            };
+
+            $(this)
+                .find(".inputTest")
+                .each(function () {
+                    testObj.inputs.push($(this).text().trim());
+                });
+
+            testData.tests.push(testObj);
+        });
+
+        el.find(".codeIncludes").each(function () {
+            testData.codeIncludes.push({
+                text: $(this).text().trim(),
+                feedback: $(this).attr("data-feedback"),
+            });
+        });
+
+        return testData;
+    },
+
+    generateHarness: function (testData, classname) {
+        console.log(
+            "Generating harness. Username:",
+            typeof currentUsername !== "undefined"
+                ? currentUsername
+                : "undefined"
+        );
+        var harness =
+            "import java.io.ByteArrayOutputStream;\n" +
+            "import java.io.ByteArrayInputStream;\n" +
+            "import java.io.PrintStream;\n" +
+            "import java.io.InputStream;\n" +
+            "import java.io.IOException;\n" +
+            "import java.lang.reflect.*;\n" +
+            "public class NoobLabTester {\n" +
+            "    static ByteArrayOutputStream baos = new ByteArrayOutputStream();\n" +
+            '    public static String username = "' +
+            (typeof currentUsername !== "undefined"
+                ? currentUsername.replace(/"/g, '\\"')
+                : "student") +
+            '";\n' +
+            "    public static PrintStream oldSysOut = System.out;\n" +
+            "    public static InputStream oldSysIn = System.in;\n" +
+            "    public static void main(String[] args) throws IOException {\n" +
+            "        int noOfTests = " +
+            testData.tests.length +
+            ";\n" +
+            "        int testsPassed = 0;\n";
+
+        var userCode = getTabBundleCode(false);
+        var offset = "";
+        var extraTests = 0;
+
+        testData.codeIncludes.forEach(function (inc) {
+            extraTests++;
+            var mustInclude = inc.text;
+            var notEqual = "false";
+            if (mustInclude.charAt(0) == "!") {
+                mustInclude = mustInclude.substring(1);
+                notEqual = "true";
+            } else if (mustInclude.charAt(0) == "#") {
+                mustInclude = mustInclude.substring(1);
+                notEqual = "regex";
+            }
+
+            var passed = false;
+            if (notEqual == "true") {
+                if (userCode.indexOf(mustInclude) == -1) passed = true;
+            } else if (notEqual == "false") {
+                if (userCode.indexOf(mustInclude) != -1) passed = true;
+            } else if (notEqual == "regex") {
+                if (userCode.search(new RegExp(mustInclude)) != -1)
+                    passed = true;
+            }
+
+            if (passed) {
+                offset += "testsPassed++; ";
+                if (!newdoppio) offset += 'oldSysOut.println("TESTCOUNT"); ';
+                else
+                    offset +=
+                        'doppio.JavaScript.eval("parent.javaTestCount++"); ';
+            } else {
+                if (!newdoppio) offset += 'oldSysOut.println("TESTCOUNT"); ';
+                else
+                    offset +=
+                        'doppio.JavaScript.eval("parent.javaTestCount++"); ';
+                if (inc.feedback) {
+                    if (!newdoppio)
+                        offset +=
+                            'oldSysOut.println("FailTip:' +
+                            inc.feedback.replace(/"/g, '\\"') +
+                            '"); ';
+                    else
+                        offset +=
+                            "doppio.JavaScript.eval(\"parent.javaFailTips.push('" +
+                            inc.feedback.replace(/'/g, "\\'") +
+                            "')\"); ";
+                }
+            }
+        });
+
+        harness += "        noOfTests += " + extraTests + ";\n";
+        harness += "        " + offset + "\n";
+
+        harness +=
+            "        PrintStream ps = new PrintStream(baos);\n" +
+            "        System.setOut(ps);\n";
+
+        for (var i = 0; i < testData.tests.length; i++) {
+            harness += "        if (test" + i + "()) testsPassed++;\n";
+        }
+
+        harness +=
+            "        System.out.flush();\n" +
+            "        System.setOut(oldSysOut);\n";
+
+        if (!newdoppio) {
+            harness +=
+                '        System.out.println("NOOBLABTESTSTART:"+testsPassed+"/"+noOfTests+":NOOBLABTESTEND");\n';
+        } else {
+            harness +=
+                '        doppio.JavaScript.eval("parent.javaTestData = \'"+testsPassed+"/"+noOfTests+"\'");\n';
+        }
+
+        if (testData.medal) {
+            if (!newdoppio) {
+                harness +=
+                    '        if (testsPassed == noOfTests) System.out.println("NOOBLABMEDALSTART:' +
+                    testData.medal +
+                    ':NOOBLABMEDALEND");\n';
+            } else {
+                harness +=
+                    "        if (testsPassed == noOfTests) doppio.JavaScript.eval(\"parent.javaTestMedal='" +
+                    testData.medal.replace(/'/g, "\\'") +
+                    "'\");\n";
+            }
+        }
+
+        harness += "    }\n";
+
+        harness +=
+            "    public static String consoleOutput() { return baos.toString(); }\n" +
+            '    public static String[] consoleOutputAsLines() { return consoleOutput().split("\\r\\n?|\\n"); }\n';
+
+        for (var i = 0; i < testData.tests.length; i++) {
+            var test = testData.tests[i];
+            harness +=
+                "    public static boolean test" +
+                i +
+                "() throws IOException {\n";
+
+            if (!newdoppio)
+                harness += '        oldSysOut.println("TESTCOUNT");\n';
+            else
+                harness +=
+                    '        doppio.JavaScript.eval("parent.javaTestCount++");\n';
+
+            var inputStr =
+                test.inputs
+                    .map(function (s) {
+                        return s.replace(/"/g, '\\"');
+                    })
+                    .join("\\n") + "\\nrandom\\nrandom\\nrandom\\nrandom";
+            harness += '        String inputValues = "' + inputStr + '";\n';
+            harness +=
+                "        ByteArrayInputStream bais = new ByteArrayInputStream(inputValues.trim().getBytes());\n" +
+                "        System.setIn(bais);\n";
+
+            var shouldRunMain =
+                test.runMain ||
+                $("div.parameter#multi").text().trim() != "true";
+
+            harness += "        try {\n";
+            if (shouldRunMain) {
+                harness +=
+                    "            " + classname + ".main(new String[5]);\n";
+            }
+
+            var testCode = js_beautify(test.code);
+            harness +=
+                "            " +
+                testCode.replace(/\n/g, "\n            ") +
+                "\n";
+
+            if (!testCode.trim().match(/return\s+[^;]+;\s*$/)) {
+                harness += "            return false;\n";
+            }
+
+            harness += "        } finally {\n";
+            harness += "            bais.close();\n";
+            harness += "            System.setIn(oldSysIn);\n";
+            harness += "        }\n";
+            harness += "    }\n";
+        }
+
+        harness += "}\n";
+        return harness;
+    },
+
+    run: function (element) {
+        var testData = this.parseTest(element);
+        var code = editor.getValue();
+
+        var debugMsg =
+            "--- TEST DEBUG START ---\n" +
+            "Editor Content: " +
+            code +
+            "\n" +
+            "Test Data: " +
+            JSON.stringify(testData, null, 2) +
+            "\n" +
+            "--- TEST DEBUG END ---";
+        console.log(debugMsg);
+        if (ipcRenderer) {
+            ipcRenderer.send("log", debugMsg);
+        }
+
+        if (numTestMon) {
+            clearInterval(numTestMon);
+            numTestMon = undefined;
+        }
+        javaTestCount = 0;
+        javaFailTips = [];
+        javaTestData = undefined;
+        javaTestMedal = undefined;
+
+        var codeFiles = getTabBundleCode(true)[0];
+        var code = editor.getValue();
+
+        if ($("div.parameter#multi").text().trim() != "true") {
+            if (!code.match(/\s*class\s*/) && !code.match(/\s*void\s*main/)) {
+                code =
+                    "import java.util.Scanner; public class Pigin { public static void main(String[] args) { " +
+                    code +
+                    "\n} }";
+                codeFiles[0] = code;
+            }
+        }
+
+        var mainsPkgs = getMainsPkgs(codeFiles);
+        if (mainsPkgs.length == 0) {
+            apprise(
+                "This code can't run. There doesn't appear to be a main method."
+            );
+            return;
+        }
+        if (mainsPkgs.length != 1) {
+            apprise(
+                "This code can't be tested. It appears as if there's more than one main method."
+            );
+            return;
+        }
+
+        var classname = mainsPkgs[0][0];
+        var packig = mainsPkgs[0][1];
+        if (packig) classname = packig + "." + classname;
+
+        var harness = this.generateHarness(testData, classname);
+
+        codeFiles.push(harness);
+
+        javaSuccessfulRun = this.onSuccess;
+        javaRuntimeError = this.onError;
+
+        LOGtestStart(
+            testData.id,
+            getTabBundleCode(),
+            undefined,
+            testData.medal
+        );
+
+        if (!newdoppio) {
+            if (outputframe.controller) outputframe.controller.reset();
+            $("div#console pre", outputframe.document).hide();
+        } else {
+            outputframe.globalTerm.reset();
+            outputframe.globalTerm.focus();
+            $("div#output-main div.status").remove();
+            status("Testing...", "border test");
+        }
+
+        if (!newdoppio) {
+            status("Testing... test number 0", "border test wipe");
+            numTestMon = setInterval(function () {
+                try {
+                    var doneNum = getConsoleText()
+                        .trim()
+                        .match(/TESTCOUNT/g).length;
+                    status(
+                        "Testing... test number " + doneNum,
+                        "border test wipe"
+                    );
+                } catch (e) {}
+            }, 500);
+        } else {
+            numTestMon = setInterval(function () {
+                status(
+                    "Testing... test number " + javaTestCount,
+                    "border test wipe"
+                );
+            }, 500);
+        }
+
+        actuallyDoRunJava(codeFiles, ["NoobLabTester", undefined], true);
+    },
+
+    onSuccess: function (mark, medal) {
+        clearInterval(numTestMon);
+        numTestMon = undefined;
+        enableRun();
+
+        if (newdoppio) {
+            $("div#output-main div.status").remove();
+            var consoletext = getConsoleText();
+            if (consoletext.indexOf("Exception in thread") != -1) {
+                var errorText = consoletext.match(
+                    /(Exception in thread [\s\S]*)/g
+                )[0];
+                $("div#output-main div.status").remove();
+                JavaTestManager.onError(errorText);
+                return;
+            }
+        }
+
+        if (medal == undefined) {
+            if (newdoppio) {
+                try {
+                    medal = javaTestMedal;
+                } catch (e) {}
+                javaTestMedal = undefined;
+            } else {
+                var m = getConsoleText()
+                    .replace(/\n/g, "")
+                    .match(/NOOBLABMEDALSTART:(.*?):NOOBLABMEDALEND/);
+                if (m) medal = m[1];
+            }
+        }
+
+        if (mark == undefined) {
+            if (newdoppio) {
+                mark = javaTestData;
+                javaTestData = undefined;
+            } else {
+                var m = getConsoleText()
+                    .trim()
+                    .replace(/\n/g, "")
+                    .match(/NOOBLABTESTSTART:(.*?):NOOBLABTESTEND/);
+                mark = m ? m[1] : "0/1";
+            }
+        }
+
+        if (!mark) mark = "0/1";
+        var parts = mark.split("/");
+        var score = parseInt(parts[0]);
+        var max = parseInt(parts[1]);
+
+        var msg = "";
+        var failtips = newdoppio
+            ? javaFailTips
+            : getConsoleText()
+                  .trim()
+                  .match(/FailTip:(.*)/g);
+
+        if (failtips) {
+            $.each(failtips, function () {
+                var tip = this.toString().replace("FailTip:", "");
+                msg +=
+                    '<p style="margin-top: 0px; color: black;">Feedback: ' +
+                    tip +
+                    "</p>";
+            });
+        }
+
+        var type = "error border";
+        if (score == max) {
+            msg +=
+                "Well done! Your work successfully passed all the tests for this exercise!";
+            type = "success border";
+            LOGtestPassed(medal);
+        } else {
+            msg +=
+                "Sorry! Your work is not a correct solution to the exercise.";
+            LOGtestFailed(score + "/" + max);
+        }
+
+        if (medal) {
+            var medalData = medal.split(":");
+            var medalName = medalData[1];
+            if (!medalName || medalName === "undefined")
+                medalName = "Challenge";
+            var medalType =
+                medalData[0] == "ribbon"
+                    ? medalData[0]
+                    : medalData[0] + " medal";
+            msg +=
+                '<p style="text-align: center"><img src="' +
+                contextPath +
+                "/images/medal" +
+                medalData[0] +
+                '.png"/></p>';
+            msg +=
+                "Passing this test awards you a " +
+                medalType +
+                ' for the "' +
+                medalName +
+                '" challenge!';
+
+            if (score == max) {
+                apprise(msg, { animate: true });
+                if (typeof confetti !== "undefined" && confetti.start) {
+                    confetti.start(3000);
+                }
+
+                // Check if already earned
+                var alreadyEarned = false;
+                if (
+                    typeof userProgress !== "undefined" &&
+                    userProgress.medals
+                ) {
+                    alreadyEarned = userProgress.medals.some(function (m) {
+                        return m.medalId === medalName;
+                    });
+                }
+
+                if (!alreadyEarned && ipcRenderer) {
+                    ipcRenderer.send("save-medal", {
+                        username:
+                            typeof currentUsername !== "undefined"
+                                ? currentUsername
+                                : "student",
+                        medalId: medalName,
+                        medalType: medalData[0],
+                    });
+
+                    // Optimistically update local state
+                    if (typeof userProgress !== "undefined") {
+                        if (!userProgress.medals) userProgress.medals = [];
+                        userProgress.medals.push({
+                            medalId: medalName,
+                            medalType: medalData[0],
+                        });
+                    }
+                }
+
+                if (typeof updateExerciseStatus === "function") {
+                    updateExerciseStatus();
+                }
+            }
+        }
+
+        // status(msg, type);
+    },
+
+    onError: function (error) {
+        javaruntimeerror = false;
+        enableRun();
+        clearInterval(numTestMon);
+
+        var msg = "Sorry! Your code threw a runtime error during the test.";
+        status(msg, "error border");
+        console.log(error);
+        LOGtestFailed("RuntimeError:" + error, "error border");
+
+        javaRuntimeError = standardJavaRuntimeError;
+    },
+};
+
+function updateExerciseStatus() {
+    if (typeof userProgress === "undefined" || !userProgress.medals) return;
+
+    $(".testCase").each(function () {
+        var medalAttr = $(this).attr("data-medal");
+        if (medalAttr) {
+            var medalName = medalAttr.split(":")[1];
+            var earned = userProgress.medals.some(function (m) {
+                return m.medalId === medalName;
+            });
+            if (earned) {
+                if (!$(this).hasClass("completed")) {
+                    $(this).addClass("completed");
+                    $(this).css("background-color", "#dff0d8");
+                    var desc = $(this).find(".testDesc");
+                    if (desc.text().indexOf("(Completed)") === -1) {
+                        desc.append(" (Completed)");
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Call update on load if possible
+$(document).ready(function () {
+    setTimeout(updateExerciseStatus, 1000); // Delay to ensure userProgress is loaded
+});

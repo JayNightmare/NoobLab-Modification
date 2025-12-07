@@ -45,6 +45,13 @@ public class Authentication {
         
         // allow guest access
         if (username.equals("guest")) return true;
+
+        // Check for local dev mode override
+        String devMode = System.getProperty("nooblab.devmode");
+        if ("true".equals(devMode)) {
+            // In dev mode, we trust the Electron wrapper to have done the auth
+            return true;
+        }
         
         // testing values
         if (sc == null)

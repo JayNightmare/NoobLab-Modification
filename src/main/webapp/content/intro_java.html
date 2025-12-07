@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Introduction to Java</title>
+</head>
+<body>
+    <!-- Metadata for NoobLab -->
+    <div class="parameter" id="language">java</div>
+    <div class="parameter" id="courseNo">1</div>
+    <div class="parameter" id="lessonNo">1</div>
+    <div class="parameter" id="open">true</div>
+
+    <div class="section">
+        <h2 class="title">Welcome to Java</h2>
+        <p>Java is a powerful, object-oriented programming language used for building applications for many platforms.</p>
+        <p>In this lesson, you will write your first Java program.</p>
+        
+        <h3>The Main Method</h3>
+        <p>Every Java application has a class with a <code>main</code> method. This is the entry point of the program.</p>
+        
+        <pre class="prettyprint">
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello World");
+    }
+}
+        </pre>
+        <p>Click the <b>Run</b> button to execute the code.</p>
+    </div>
+
+    <div class="section">
+        <h2 class="title">Variables</h2>
+        <p>Variables are containers for storing data values.</p>
+        <p>In Java, there are different types of variables, for example:</p>
+        <ul>
+            <li><code>String</code> - stores text, such as "Hello". String values are surrounded by double quotes</li>
+            <li><code>int</code> - stores integers (whole numbers), without decimals, such as 123 or -123</li>
+        </ul>
+        
+        <pre class="prettyprint">
+public class Main {
+    public static void main(String[] args) {
+        String name = "John";
+        int age = 25;
+        System.out.println(name + " is " + age + " years old.");
+    }
+}
+        </pre>
+    </div>
+
+    <div class="section">
+        <h2 class="title">Exercise: Print Hello, [Your Name]</h2>
+        <p>Write a program that prints "Hello, [Your Name]".</p>
+        <p>Replace <code>[Your Name]</code> with your actual username (e.g. "Hello, student").</p>
+        
+        <div class="testCase" data-id="java_intro_ex1" data-medal="Bronze:Hello World">
+            <div class="test">
+                <div class="code">
+                String output = baos.toString();
+                String lowerOutput = output.toLowerCase();
+                String expected = "hello, " + username.toLowerCase();
+                
+                if (lowerOutput.contains(expected)) {
+                    return true;
+                }
+                
+                if (output.trim().isEmpty()) {
+                     oldSysOut.println("I can't hear you! You didn't print anything! Use System.out.println(...)");
+                     return false;
+                }
+                
+                if (lowerOutput.contains("hello world")) {
+                    oldSysOut.println("Classic 'Hello World', but I want to know who YOU are! Say 'Hello, " + username + "'!");
+                    return false;
+                }
+                
+                if (lowerOutput.contains("hello " + username.toLowerCase()) && !lowerOutput.contains(",")) {
+                    oldSysOut.println("Whoa there, where's the comma? Grammar police are watching! It's 'Hello, " + username + "'!");
+                    return false;
+                }
+                
+                if (lowerOutput.contains("hello,") && !lowerOutput.contains(username.toLowerCase())) {
+                    oldSysOut.println("Hello, who? I don't know you! Use your username: " + username);
+                    return false;
+                }
+                
+                oldSysOut.println("Not quite! I expected: 'Hello, " + username + "'. You said: " + output.trim());
+                return false;
+                </div>
+            </div>
+            <div class="testDesc">Print "Hello, [Your Name]"</div>
+        </div>
+    </div>
+</body>
+</html>
