@@ -31,6 +31,7 @@
             border-radius: 8px;
             padding: 1.5rem;
             transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
         }
         .card:hover {
             transform: translateY(-4px);

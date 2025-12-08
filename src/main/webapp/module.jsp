@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/modern.css">
     <style>
+        h4 {
+            margin-top: 0;
+            padding-top: 0;
+        }
         .module-container {
             max-width: 1200px;
             padding: 2rem;
@@ -25,7 +29,7 @@
         .medal-icon {
             width: 32px;
             height: 32px;
-            border-radius: 50%;
+            border-radius: 12px;
             margin-right: 1rem;
             display: flex;
             align-items: center;
@@ -93,7 +97,7 @@
         
         <div class="medal-section">
             <div class="medal-header">
-                <div class="medal-icon bronze-icon">B</div>
+                <div class="medal-icon bronze-icon">Bronze Medals</div>
                 <h3>Exercises</h3>
             </div>
             <div class="exercise-grid">

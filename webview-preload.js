@@ -19,6 +19,9 @@ const api = {
     log: (msg) => {
         ipcRenderer.sendToHost("console-log", msg);
     },
+    saveMedal: (medalId, medalType) => {
+        ipcRenderer.send("save-medal", { medalId, medalType });
+    },
 };
 
 // Expose to the main world

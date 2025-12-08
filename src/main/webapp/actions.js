@@ -283,6 +283,9 @@ function LOGmedal(newMedal, id) {
 
     if (id) {
         logActivity("Medal", CLSstr(), newMedal + ":" + id, "");
+        if (window.NoobLabDesktop && window.NoobLabDesktop.saveMedal) {
+            window.NoobLabDesktop.saveMedal(id, newMedal);
+        }
     } else {
         logActivity("Medal", CLSstr(), newMedal, "");
     }

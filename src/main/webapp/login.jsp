@@ -5,41 +5,153 @@
 --%>
 
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
+<!DOCTYPE html>
 <html>
-    <head>
-        <title>NoobLab Login</title>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/nooblab.css">
-         <%-- JQuery --%>        
-        <script src="${pageContext.request.contextPath}/jq.js"></script>
-        <script src="${pageContext.request.contextPath}/canvas-auto-login.js.jsp"></script>
-        <script src="${pageContext.request.contextPath}/aes.js"></script>
-    </head>
-    <body>
-        <div id="content" style="width : 100%">
-             <div class="loginBoxBigger">
-                 <h3>NoobLab</h3>
-                 <div style="text-align : left">
-                     <span>Please log into the learning environment with your username and password:</span>    
-                     <form onsubmit="encryptAndSubmitLogin(); return false;">
-                    <div class="label">Username:</div><input name="visibleusername"/><br/>
-                    <div class="label">Password:</div><input name="visiblepassword" type="password"/>
-                    <input class="button" type="submit" value="Login" onclick="encryptAndSubmitLogin()"/>                        
-                     </form>                    
-                     <form style="display: none" action="${pageContext.request.contextPath}/Login" method="post">  
-                         <input name="x1"/>
-                         <input name="x2"/>                        
-                         <input name="originalUrl" type="hidden" value="${originalUrl}"/>
-                     </form>
-                     <input id="hash" type="hidden" value="<%= session.getId().substring(0,16) %>"/>
-                 </div>
-                 <div id="error" class="error" style="text-align: left; font-weight: bold; font-size: 0.9em; display: none">The credentials you supplied were not valid. Please try again.</div>
-                 <script type="text/javascript">
-                     if ("${error}" != "") document.getElementById("error").style.display = "block";
-                 </script>
+<head>
+    <title>NoobLab Login</title>
+    <!-- Reference existing CSS for now -->
+    <link rel="stylesheet" href="../../src/main/webapp/nooblab.css">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-container {
+            background: #1e1e1e;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-container h3 {
+            margin-top: 0;
+            color: #e0e0e0;
+        }
+        .login-container p {
+            color: #a0a0a0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0a0a0;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            background-color: #2d2d2d;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #bb86fc;
+        }
+        .btn {
+            background-color: #bb86fc;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #9965f4;
+        }
+        .error {
+            color: #cf6679;
+            margin-top: 10px;
+            display: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h3>NoobLab Desktop</h3>
+        <p>Please log in to continue</p>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required>
             </div>
-        </div>
-    </body>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn">Login</button>
+        </form>
+        
+        <div id="error" class="error">Invalid credentials</div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Use the exposed API to communicate with the main process
+            if (window.NoobLabDesktop) {
+                // We'll send a custom IPC message for login
+                // Since our preload only exposes specific methods, we might need to update it 
+                // OR use the 'log' method to debug for now if we can't send arbitrary messages.
+                // Wait, we can add a 'login' method to the preload script.
+                
+                // For now, let's assume we update the preload script to support this.
+                // Or we can use `ipcRenderer` directly if nodeIntegration is on (which it is in main.js config).
+                // The main.js has `nodeIntegration: true` and `contextIsolation: false` for the webview?
+                // No, main.js has it for the mainWindow. The webview tag inherits? 
+                // Actually, webview runs in a separate process.
+                
+                // Let's check if we can use ipcRenderer directly since we are in a webview with nodeintegration potentially enabled?
+                // The preload script `webview-preload.js` requires `ipcRenderer`.
+                
+                // Let's try to use the bridge we made.
+                // We need to add a 'login' function to the bridge.
+                console.log("Attempting login...");
+            }
+            
+            // Send to host (Electron Main Process via the index.html proxy)
+            // In index.html, we listen for 'ipc-message'.
+            // We can send a message 'login-attempt' with args.
+            
+            // The preload script exposes `ipcRenderer.sendToHost`.
+            // We can add a generic `send` method to our preload or just add `login`.
+            
+            if (window.NoobLabDesktop && window.NoobLabDesktop.login) {
+                window.NoobLabDesktop.login(username, password);
+            } else {
+                console.error("NoobLabDesktop API not fully available");
+            }
+        });
+
+        if (window.NoobLabDesktop && window.NoobLabDesktop.onLoginFailed) {
+            window.NoobLabDesktop.onLoginFailed((msg) => {
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = msg;
+                errorDiv.style.display = 'block';
+            });
+        }
+    </script>
+</body>
 </html>

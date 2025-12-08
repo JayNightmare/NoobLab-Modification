@@ -20,5 +20,12 @@
                  <h3>You have been logged out of the learning environment.</h3>
             </div>
         </div>
+
+        <!-- Script to redirect to login page after logout -->
+        <script>
+            setTimeout(function() {
+                window.location.href = "${pageContext.request.contextPath}/login.jsp";
+            }, 300); // Redirect after 0.3 seconds
+        </script>
     </body>
 </html>

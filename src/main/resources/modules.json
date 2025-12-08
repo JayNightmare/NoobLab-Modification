@@ -1,0 +1,74 @@
+[
+    {
+        "id": "prog1",
+        "title": "Programming 1 (Java)",
+        "description": "Introduction to Java Programming. Covers variables, control flow, and loops.",
+        "cohort": 1,
+        "exercises": [
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440001",
+                "title": "Introduction to Java",
+                "description": "Learn the basics of Java programming.",
+                "file": "550e8400-e29b-41d4-a716-446655440001.html",
+                "originalFile": "intro_java.html",
+                "medal": "Bronze"
+            },
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440002",
+                "title": "Variables",
+                "description": "Understand how to use variables in Java.",
+                "file": "550e8400-e29b-41d4-a716-446655440002.html",
+                "originalFile": "java_variables.html",
+                "medal": "Bronze"
+            },
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440003",
+                "title": "If Statements",
+                "description": "Learn how to use if statements in Java.",
+                "file": "550e8400-e29b-41d4-a716-446655440003.html",
+                "originalFile": "java_if.html",
+                "medal": "Silver"
+            },
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440004",
+                "title": "Loops",
+                "description": "Learn how to use loops in Java.",
+                "file": "550e8400-e29b-41d4-a716-446655440004.html",
+                "originalFile": "java_loops.html",
+                "medal": "Gold"
+            }
+        ]
+    },
+    {
+        "id": "prog2",
+        "title": "Programming 2 (Python)",
+        "description": "Intermediate Programming with Python. Covers lists and functions.",
+        "cohort": 2,
+        "exercises": [
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440005",
+                "title": "Introduction to Python",
+                "description": "Learn the basics of Python programming.",
+                "file": "550e8400-e29b-41d4-a716-446655440005.html",
+                "originalFile": "python_intro.html",
+                "medal": "Bronze"
+            },
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440006",
+                "title": "Lists",
+                "description": "Learn how to use lists in Python.",
+                "file": "550e8400-e29b-41d4-a716-446655440006.html",
+                "originalFile": "python_lists.html",
+                "medal": "Silver"
+            },
+            {
+                "exerciseId": "550e8400-e29b-41d4-a716-446655440007",
+                "title": "Functions",
+                "description": "Learn how to use functions in Python.",
+                "file": "550e8400-e29b-41d4-a716-446655440007.html",
+                "originalFile": "python_functions.html",
+                "medal": "Gold"
+            }
+        ]
+    }
+]

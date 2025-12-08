@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 
 let mainWindow;
 let javaProcess;
+let currentUser = null;
 
 // --- Database Setup ---
 const MONGO_URI =
@@ -25,6 +26,7 @@ mongoose
     .catch((err) => console.log("MongoDB Connection Error:", err));
 
 const UserSchema = new mongoose.Schema({
+    id: String,
     username: String,
     password: String,
     medals: [
@@ -34,8 +36,29 @@ const UserSchema = new mongoose.Schema({
             timestamp: { type: Date, default: Date.now },
         },
     ],
+    createdAt: { type: Date, default: Date.now },
+    lastLoggedIn: { type: Date, default: Date.now },
+    cohort: { type: Number, default: 1 },
 });
 const User = mongoose.model("User", UserSchema);
+
+const CourseSchema = new mongoose.Schema({
+    id: String,
+    title: String,
+    description: String,
+    cohort: { type: Number, default: 1 },
+    exercises: [
+        {
+            exerciseId: String,
+            title: String,
+            description: String,
+            file: String,
+            originalFile: String,
+            medal: { type: String, default: "Bronze" },
+        },
+    ],
+});
+const Course = mongoose.model("Course", CourseSchema);
 
 ipcMain.on("get-user-data", async (event, { username }) => {
     try {
@@ -62,15 +85,33 @@ ipcMain.on("log", (event, message) => {
     console.log("[RENDERER LOG]:", message);
 });
 
-ipcMain.on("save-medal", async (event, { username, medalId, medalType }) => {
-    console.log(`Saving medal for ${username}: ${medalType} - ${medalId}`);
+ipcMain.handle("get-dashboard-data", async (event) => {
     try {
-        const user = await User.findOne({ username });
+        const courses = await Course.find({});
+        return { courses };
+    } catch (e) {
+        console.error("Fetch Error:", e);
+        return { courses: [] };
+    }
+});
+
+ipcMain.on("save-medal", async (event, { username, medalId, medalType }) => {
+    const targetUser = username || currentUser;
+    if (!targetUser) {
+        event.reply("medal-saved", {
+            success: false,
+            error: "No user logged in",
+        });
+        return;
+    }
+    console.log(`Saving medal for ${targetUser}: ${medalType} - ${medalId}`);
+    try {
+        const user = await User.findOne({ username: targetUser });
         if (user) {
             const exists = user.medals.some((m) => m.medalId === medalId);
             if (!exists) {
                 await User.updateOne(
-                    { username },
+                    { username: targetUser },
                     { $push: { medals: { medalId, medalType } } }
                 );
                 event.reply("medal-saved", { success: true, new: true });
@@ -92,12 +133,54 @@ ipcMain.on("save-medal", async (event, { username, medalId, medalType }) => {
 
 async function seedDatabase() {
     try {
-        const userCount = await User.countDocuments();
-        if (userCount === 0) {
-            console.log("Seeding Users...");
-            await User.create({ username: "student", password: "password" });
-            await User.create({ username: "admin", password: "admin" });
-            console.log("Users Seeded");
+        /* 
+        TODO - Course Seeding
+        - Check if courses has all the module courses in src/main/resources/modules.json
+        - If a course is missing, add it to the database
+        */
+        const modulesPath = path.join(
+            __dirname,
+            "src",
+            "main",
+            "resources",
+            "modules.json"
+        );
+
+        if (fs.existsSync(modulesPath)) {
+            const modules = JSON.parse(fs.readFileSync(modulesPath, "utf-8"));
+            for (const moduleData of modules) {
+                const exists = await Course.findOne({ id: moduleData.id });
+                if (!exists) {
+                    console.log(`Seeding missing course: ${moduleData.title}`);
+                    await Course.create(moduleData);
+                }
+            }
+        } else {
+            console.warn(`Modules file not found at ${modulesPath}`);
+        }
+        /* 
+        TODO - User Seeding
+        - Check to see if Admin exists in the database, if not, create one
+        - Check to see if the 3 test users are in the database (first year, second year, and a third year)
+        */
+        const usersPath = path.join(
+            __dirname,
+            "src",
+            "main",
+            "resources",
+            "users.json"
+        );
+        if (fs.existsSync(usersPath)) {
+            const users = JSON.parse(fs.readFileSync(usersPath, "utf-8"));
+            for (const userData of users) {
+                const exists = await User.findOne({ id: userData.id });
+                if (!exists) {
+                    console.log(`Seeding missing user: ${userData.username}`);
+                    await User.create(userData);
+                }
+            }
+        } else {
+            console.warn(`Modules file not found at ${modulesPath}`);
         }
     } catch (err) {
         console.error("Seeding Error:", err);
@@ -113,6 +196,7 @@ function startJavaServer() {
     console.log("Starting Java Server...");
     javaProcess = spawn("java", [
         `-Dwebapp.dir=${WEBAPP_DIR}`,
+        `-Dmongo.uri=${MONGO_URI}`,
         "-jar",
         JAR_PATH,
         PORT.toString(),
@@ -134,8 +218,9 @@ ipcMain.on("login-attempt", async (event, { username, password }) => {
         const user = await User.findOne({ username, password });
         if (user) {
             console.log("Login successful");
+            currentUser = username;
             // Redirect to Java WebApp with trusted_user param
-            const targetUrl = `http://localhost:${PORT}/Login?trusted_user=${username}`;
+            const targetUrl = `http://localhost:${PORT}/Login?trusted_user=${currentUser}`;
             mainWindow.loadURL(targetUrl);
         } else {
             event.reply("login-failed", "Invalid credentials");

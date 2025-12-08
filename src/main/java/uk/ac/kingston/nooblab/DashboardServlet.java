@@ -2,7 +2,6 @@ package uk.ac.kingston.nooblab;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
@@ -30,7 +29,7 @@ public class DashboardServlet extends HttpServlet {
         
         try {
             int userId = DatabaseManager.getOrCreateUser(username);
-            List<Map<String, Object>> modules = DatabaseManager.getModules();
+            List<Map<String, Object>> modules = DatabaseManager.getModules(userId);
             Map<String, String> userMedals = DatabaseManager.getUserMedals(userId);
             List<Map<String, Object>> progressList = DatabaseManager.getUserProgressList(userId);
             
