@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NoobLab Admin Login</title>
+    <link rel="stylesheet" href="../../src/main/webapp/nooblab.css">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-container {
+            background: #1e1e1e;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            border-top: 4px solid #ff4444; /* Red accent for Admin */
+        }
+        .login-container h3 {
+            margin-top: 0;
+            color: #e0e0e0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0a0a0;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            background-color: #2d2d2d;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 10px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-login:hover {
+            background-color: #cc0000;
+        }
+        .error-msg {
+            color: #ff6b6b;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h3>Admin Access</h3>
+        <p>Restricted Area</p>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="username" placeholder="Admin Username">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Password">
+        </div>
+        <button class="btn-login" onclick="attemptLogin()">Login</button>
+        <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        function attemptLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            ipcRenderer.send('admin-login-attempt', { username, password });
+        }
+
+        ipcRenderer.on('admin-login-failed', (event, message) => {
+            const el = document.getElementById('errorMsg');
+            el.innerText = message;
+            el.style.display = 'block';
+        });
+    </script>
+</body>
+</html>

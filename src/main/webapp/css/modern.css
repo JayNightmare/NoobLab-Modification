@@ -161,7 +161,7 @@ a {
 }
 
 a:hover {
-    color: var(--accent-hover) !important;
+    /* color: var(--accent-hover) !important; */
     text-decoration: underline;
 }
 
@@ -230,11 +230,6 @@ a:hover {
 a {
     color: var(--accent-color) !important;
     text-decoration: none;
-}
-
-a:hover {
-    color: var(--accent-hover) !important;
-    text-decoration: underline;
 }
 
 /* Buttons */

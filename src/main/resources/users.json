@@ -1,5 +1,14 @@
 [
     {
+        "id": "admin-1",
+        "username": "adminuser",
+        "password": "adminpass",
+        "medals": ["gold", "silver", "bronze"],
+        "createdAt": "2023-01-01T00:00:00Z",
+        "lastLoggedIn": "2024-01-01T00:00:00Z",
+        "cohort": -1
+    },
+    {
         "id": "test-1",
         "username": "testuser1",
         "password": "password123",

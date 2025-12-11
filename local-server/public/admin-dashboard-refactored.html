@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>NoobLab Admin Dashboard</title>
+
+        <!-- External Stylesheets -->
+        <link rel="stylesheet" href="../../src/main/webapp/nooblab.css" />
+        <link
+            rel="stylesheet"
+            href="../../src/main/webapp/codemirror/lib/codemirror.css"
+        />
+        <link
+            rel="stylesheet"
+            href="../../src/main/webapp/codemirror/theme/material-darker.css"
+        />
+        <link rel="stylesheet" href="css/admin-dashboard.css" />
+    </head>
+    <body>
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin Panel</h2>
+            </div>
+            <div class="nav-item active">Users & Cohorts</div>
+            <div class="nav-item">Lessons & Tests</div>
+            <div class="nav-item">Preview as Test User</div>
+            <div
+                class="nav-item"
+                style="margin-top: auto; border-top: 1px solid #333"
+            >
+                Logout
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="content">
+            <!-- Users View -->
+            <div id="users-view" class="view-section active">
+                <h1>User Management</h1>
+
+                <!-- Add/Edit User Card -->
+                <div class="card">
+                    <h3>Add/Edit User</h3>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input
+                            title="username"
+                            type="text"
+                            id="user-username"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input
+                            title="password"
+                            type="password"
+                            id="user-password"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label>Cohort (Number)</label>
+                        <input
+                            title="cohort"
+                            type="number"
+                            id="user-cohort"
+                            value="1"
+                        />
+                    </div>
+                    <button class="btn btn-success" onclick="saveUser()">
+                        Save User
+                    </button>
+                </div>
+
+                <!-- Existing Users Card -->
+                <div class="card">
+                    <h3>Existing Users</h3>
+                    <!-- Search Users -->
+                    <div>
+                        <input
+                            type="text"
+                            id="user-search"
+                            placeholder="Search by username..."
+                            oninput="UserManager.filterUsers()"
+                        />
+                    </div>
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Cohort</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by UserManager -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Lessons View -->
+            <div id="lessons-view" class="view-section">
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 20px;
+                    "
+                >
+                    <h1 style="margin: 0">Lesson Management</h1>
+                    <div>
+                        <a
+                            href="admin-create-exercise.html"
+                            class="btn btn-success"
+                            style="text-decoration: none"
+                        >
+                            Create New Exercise
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Select Exercise Card -->
+                <div class="card">
+                    <h3>Select Exercise to Edit</h3>
+                    <div class="form-group">
+                        <label>Module</label>
+                        <select
+                            title="Select Module"
+                            id="module-select"
+                            onchange="loadExercises()"
+                        >
+                            <option value="">Select Module...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Exercise</label>
+                        <select
+                            title="Select Exercise"
+                            id="exercise-select"
+                            onchange="loadExerciseDetails()"
+                        >
+                            <option value="">Select Exercise...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Exercise Editor Card -->
+                <div id="exercise-editor" class="card" style="display: none">
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        "
+                    >
+                        <h3>Edit Exercise</h3>
+                        <button
+                            class="btn btn-danger"
+                            onclick="deleteExercise()"
+                        >
+                            Delete Exercise
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="ex-title" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description (Short)</label>
+                        <input type="text" id="ex-description" />
+                    </div>
+
+                    <!-- Exercise Settings -->
+                    <div class="form-section">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Difficulty Level</label>
+                                <select title="Medal Type" id="ex-medal">
+                                    <option value="Bronze">
+                                        🥉 Bronze (Easy)
+                                    </option>
+                                    <option value="Silver">
+                                        🥈 Silver (Medium)
+                                    </option>
+                                    <option value="Gold">🥇 Gold (Hard)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Programming Language</label>
+                                <select title="Language" id="ex-language">
+                                    <option value="Java">Java</option>
+                                    <option value="Python">Python</option>
+                                    <option value="JavaScript">
+                                        JavaScript
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lesson Sections -->
+                    <div class="form-group">
+                        <div
+                            style="
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                margin-bottom: 10px;
+                            "
+                        >
+                            <label style="margin: 0">Lesson Sections</label>
+                            <button
+                                type="button"
+                                class="btn btn-success"
+                                onclick="LessonManager.addSection()"
+                                title="Add New Section"
+                            >
+                                Add Section
+                            </button>
+                        </div>
+                        <div id="sections-container">
+                            <!-- Sections will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- File Upload for Test Code -->
+                    <div class="form-group">
+                        <label>Test Condition Code (Java)</label>
+                        <div id="file-upload-area" class="file-upload-area">
+                            <div>Click to upload or drag and drop</div>
+                            <div
+                                style="
+                                    font-size: 12px;
+                                    color: #999;
+                                    margin-top: 5px;
+                                "
+                            >
+                                Java test code file (*.java)
+                            </div>
+                        </div>
+                        <input
+                            type="file"
+                            id="test-file-input"
+                            accept=".java,.txt"
+                            style="display: none"
+                        />
+                        <div id="file-info" style="display: none"></div>
+                        <div class="editor-header" style="margin-top: 15px">
+                            <h4>Code Editor</h4>
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                onclick="EditorSetup.formatCode()"
+                                title="Format Code (Shift+Alt+F)"
+                            >
+                                Format
+                            </button>
+                        </div>
+                        <textarea id="ex-test-code"></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 20px">
+                        <button
+                            class="btn btn-primary"
+                            onclick="saveExercise()"
+                        >
+                            Save Changes
+                        </button>
+                        <button
+                            class="btn btn-secondary"
+                            onclick="previewExercise()"
+                        >
+                            Preview Lesson
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="delete-exercise-modal" class="modal">
+            <div class="modal-content">
+                <h3>Confirm Delete</h3>
+                <p>
+                    Are you sure you want to delete this exercise? This cannot
+                    be undone.
+                </p>
+                <div style="text-align: right">
+                    <button class="btn" onclick="closeDeleteModal()">
+                        Cancel
+                    </button>
+                    <button
+                        class="btn btn-danger"
+                        onclick="confirmDeleteExercise()"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Modal -->
+        <div id="alert-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="alert-title">Alert</h3>
+                <p id="alert-message"></p>
+                <div style="text-align: right">
+                    <button class="btn btn-primary" onclick="closeAlertModal()">
+                        OK
+                    </button>
+                </div>
+                <div>
+                    <button
+                        id="alert-confirm-button"
+                        class="btn btn-primary"
+                        style="display: none"
+                        onclick="UIUtils.confirmAlert()"
+                    >
+                        Confirm
+                    </button>
+                    <button
+                        id="alert-cancel-button"
+                        class="btn"
+                        style="display: none"
+                        onclick="UIUtils.cancelAlert()"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Modal -->
+        <div id="confirm-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="confirm-title"></h3>
+                <p id="confirm-message"></p>
+                <div style="text-align: right">
+                    <button
+                        class="btn"
+                        id="confirm-no-btn"
+                        onclick="UIUtils.closeConfirmModal()"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        class="btn btn-primary"
+                        id="confirm-yes-btn"
+                        onclick="UIUtils.confirmAction()"
+                    >
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Mode -->
+        <div id="preview-mode" class="preview-mode">
+            <div class="preview-toolbar">
+                <h3 style="margin: 0; flex: 1; color: #e0e0e0">
+                    Lesson Preview
+                </h3>
+                <button class="btn btn-secondary" onclick="editFromPreview()">
+                    Edit
+                </button>
+                <button class="btn btn-primary" onclick="closePreview()">
+                    Back to Admin
+                </button>
+            </div>
+            <div class="preview-content" id="preview-content"></div>
+        </div>
+
+        <!-- External Scripts -->
+        <script src="../../src/main/webapp/jsbeautify.js"></script>
+        <script src="../../src/main/webapp/codemirror/lib/codemirror.js"></script>
+        <script src="../../src/main/webapp/codemirror/mode/markdown/markdown.js"></script>
+        <script src="../../src/main/webapp/codemirror/mode/clike/clike.js"></script>
+
+        <!-- Application Modules (order matters - dependencies first) -->
+        <script src="js/admin-ui-utils.js"></script>
+        <script src="js/admin-editor-setup.js"></script>
+        <script src="js/admin-user-manager.js"></script>
+        <script src="js/admin-lesson-manager.js"></script>
+        <script src="js/admin-main.js"></script>
+    </body>
+</html>

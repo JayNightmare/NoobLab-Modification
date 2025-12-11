@@ -131,6 +131,7 @@ public class DatabaseManager {
                     "user_id INT, " +
                     "module_id VARCHAR(50), " +
                     "exercise_id VARCHAR(100), " +
+                    "language VARCHAR(20), " +
                     "medal_type VARCHAR(20), " + // Bronze, Silver, Gold
                     "timestamp LONG, " +
                     "FOREIGN KEY (user_id) REFERENCES users(id)" +

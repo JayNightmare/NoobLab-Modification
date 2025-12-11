@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Create New Exercise - NoobLab Admin</title>
+
+        <!-- External Stylesheets -->
+        <link rel="stylesheet" href="../../src/main/webapp/nooblab.css" />
+        <link rel="stylesheet" href="css/admin-dashboard.css" />
+        <style>
+            /* Override for standalone page */
+            body {
+                flex-direction: column;
+            }
+
+            .page-header {
+                background: #1e1e1e;
+                border-bottom: 2px solid #4caf50;
+                padding: 20px 30px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .page-header h1 {
+                margin: 0;
+                color: #4caf50;
+                font-size: 28px;
+            }
+
+            .page-header .nav-buttons {
+                display: flex;
+                gap: 10px;
+            }
+
+            .content {
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 40px 20px;
+            }
+
+            .form-container {
+                background: #1a2d1a;
+                padding: 30px;
+                border-radius: 8px;
+                border: 2px solid #4caf50;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            }
+
+            .form-section {
+                margin-bottom: 30px;
+                padding-bottom: 30px;
+                border-bottom: 1px solid #333;
+            }
+
+            .form-section:last-child {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+
+            .form-section h3 {
+                color: #4caf50;
+                margin-top: 0;
+                margin-bottom: 20px;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .form-section h3::before {
+                content: "▸";
+                font-size: 20px;
+            }
+
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+
+            @media (max-width: 768px) {
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .success-message {
+                background: #1a2d1a;
+                border-left: 4px solid #4caf50;
+                padding: 15px;
+                margin-bottom: 20px;
+                border-radius: 4px;
+                display: none;
+            }
+
+            .success-message.active {
+                display: block;
+            }
+
+            .helper-text {
+                font-size: 12px;
+                color: #888;
+                margin-top: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>✨ Create New Exercise</h1>
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="goBack()">
+                    ← Back to Dashboard
+                </button>
+                <button class="btn btn-danger" onclick="logout()">
+                    Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Success Message -->
+            <div id="success-message" class="success-message">
+                <strong>✓ Exercise created successfully!</strong>
+                <p>You can now edit it in the Lesson Management section.</p>
+            </div>
+
+            <!-- Form Container -->
+            <div class="form-container">
+                <!-- Module Selection -->
+                <div class="form-section">
+                    <h3>Module Selection</h3>
+                    <div class="form-group">
+                        <label>Select Module</label>
+                        <select title="Select Module" id="new-module-select">
+                            <option value="">Select Module...</option>
+                        </select>
+                        <div class="helper-text">
+                            Choose the module this exercise belongs to
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h3>Basic Information</h3>
+                    <div class="form-group">
+                        <label>Exercise Title *</label>
+                        <input
+                            title="Exercise Title"
+                            type="text"
+                            id="new-ex-title"
+                            placeholder="e.g., Hello World in Java"
+                        />
+                        <div class="helper-text">
+                            A clear, descriptive title for the exercise
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Short Description</label>
+                        <input
+                            title="Short Description"
+                            type="text"
+                            id="new-ex-description"
+                            placeholder="Brief description of what students will learn"
+                        />
+                        <div class="helper-text">
+                            Optional: A brief summary shown in the exercise list
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise Settings -->
+                <div class="form-section">
+                    <h3>Exercise Settings</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Difficulty Level</label>
+                            <select title="Medal Type" id="new-ex-medal">
+                                <option value="Bronze">🥉 Bronze (Easy)</option>
+                                <option value="Silver">
+                                    🥈 Silver (Medium)
+                                </option>
+                                <option value="Gold">🥇 Gold (Hard)</option>
+                            </select>
+                            <div class="helper-text">
+                                Select the difficulty level
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Programming Language</label>
+                            <select title="Language" id="new-ex-language">
+                                <option value="Java">Java</option>
+                                <option value="Python">Python</option>
+                                <option value="JavaScript">JavaScript</option>
+                            </select>
+                            <div class="helper-text">
+                                Primary language for this exercise
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div
+                    style="
+                        display: flex;
+                        gap: 10px;
+                        justify-content: flex-end;
+                        margin-top: 30px;
+                    "
+                >
+                    <button class="btn btn-secondary" onclick="resetForm()">
+                        Reset Form
+                    </button>
+                    <button
+                        class="btn btn-success"
+                        onclick="submitAddExercise()"
+                    >
+                        Create Exercise
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="card" style="margin-top: 30px; background: #2d2d2d">
+                <h3>ℹ️ What happens next?</h3>
+                <p>After creating the exercise, you'll be able to:</p>
+                <ul style="color: #a0a0a0; line-height: 1.8">
+                    <li>Add markdown content for the lesson introduction</li>
+                    <li>Upload test code to validate student submissions</li>
+                    <li>Preview how students will see the lesson</li>
+                    <li>Edit or delete the exercise anytime</li>
+                </ul>
+                <p style="margin-top: 15px">
+                    <strong>Tip:</strong> Start with Bronze exercises and
+                    gradually increase difficulty.
+                </p>
+            </div>
+        </div>
+
+        <!-- Alert Modal -->
+        <div id="alert-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="alert-title">Alert</h3>
+                <p id="alert-message"></p>
+                <div style="text-align: right">
+                    <button class="btn btn-primary" onclick="closeAlertModal()">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application Modules -->
+        <script src="js/admin-ui-utils.js"></script>
+        <script src="js/admin-lesson-manager.js"></script>
+        <script>
+            const { ipcRenderer } = require("electron");
+
+            // Load modules on page load
+            document.addEventListener("DOMContentLoaded", function () {
+                loadModules();
+            });
+
+            // Load modules for dropdown
+            function loadModules() {
+                ipcRenderer.invoke("admin-get-modules").then((modules) => {
+                    const select = document.getElementById("new-module-select");
+                    if (select) {
+                        select.innerHTML =
+                            '<option value="">Select Module...</option>';
+                        modules.forEach((module) => {
+                            const option = document.createElement("option");
+                            option.value = module.id;
+                            option.textContent = module.title;
+                            select.appendChild(option);
+                        });
+                    }
+                });
+            }
+
+            // Submit new exercise
+            function submitAddExercise() {
+                const moduleId =
+                    document.getElementById("new-module-select").value;
+                const title = document
+                    .getElementById("new-ex-title")
+                    .value.trim();
+                const description = document
+                    .getElementById("new-ex-description")
+                    .value.trim();
+                const medal = document.getElementById("new-ex-medal").value;
+                const language =
+                    document.getElementById("new-ex-language").value;
+
+                // Validation
+                if (!moduleId) {
+                    UIUtils.showAlert(
+                        "Please select a module first",
+                        "Validation Error"
+                    );
+                    return;
+                }
+
+                if (!title) {
+                    UIUtils.showAlert(
+                        "Exercise title is required",
+                        "Validation Error"
+                    );
+                    return;
+                }
+
+                // Show loading
+                UIUtils.showLoading("Creating exercise...");
+
+                ipcRenderer
+                    .invoke("admin-add-exercise", {
+                        moduleId,
+                        title,
+                        description,
+                        medal,
+                        language,
+                    })
+                    .then((response) => {
+                        UIUtils.hideLoading();
+
+                        if (response.success) {
+                            // Show success message
+                            document
+                                .getElementById("success-message")
+                                .classList.add("active");
+
+                            // Reset form
+                            resetForm();
+
+                            // Scroll to top
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+
+                            // Hide success message after 5 seconds
+                            setTimeout(() => {
+                                document
+                                    .getElementById("success-message")
+                                    .classList.remove("active");
+                            }, 5000);
+                        } else {
+                            UIUtils.showAlert(
+                                "Error: " + response.error,
+                                "Error"
+                            );
+                        }
+                    })
+                    .catch((error) => {
+                        UIUtils.hideLoading();
+                        UIUtils.showAlert(
+                            "Error creating exercise: " + error.message,
+                            "Error"
+                        );
+                    });
+            }
+
+            // Reset form
+            function resetForm() {
+                document.getElementById("new-module-select").value = "";
+                document.getElementById("new-ex-title").value = "";
+                document.getElementById("new-ex-description").value = "";
+                document.getElementById("new-ex-medal").value = "Bronze";
+                document.getElementById("new-ex-language").value = "Java";
+            }
+
+            // Navigation
+            function goBack() {
+                window.location.href = "admin-dashboard-refactored.html";
+            }
+
+            function logout() {
+                if (confirm("Are you sure you want to logout?")) {
+                    window.location.href = "admin-login.html";
+                }
+            }
+
+            function closeAlertModal() {
+                UIUtils.closeAlertModal();
+            }
+        </script>
+    </body>
+</html>
